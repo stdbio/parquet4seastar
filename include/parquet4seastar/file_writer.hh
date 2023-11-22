@@ -21,6 +21,7 @@
 
 #pragma once
 
+#include <memory>
 #include <parquet4seastar/column_chunk_writer.hh>
 #include <parquet4seastar/writer_schema.hh>
 #include <parquet4seastar/y_combinator.hh>
@@ -84,7 +85,7 @@ public:
     static seastar::future<std::unique_ptr<file_writer>>
     open(const std::string& path, const writer_schema::schema& schema) {
         return seastar::futurize_invoke([&schema, path] {
-            auto fw = std::unique_ptr<file_writer>(new file_writer{});
+            auto fw = std::make_unique<file_writer>();
             writer_schema::write_schema_result wsr = writer_schema::write_schema(schema);
             fw->_metadata.schema = std::move(wsr.elements);
             fw->_leaf_paths = std::move(wsr.leaf_paths);

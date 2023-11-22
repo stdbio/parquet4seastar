@@ -45,16 +45,13 @@ seastar::future<field_reader> field_reader::make(file_reader& fr, const reader_s
                 return field_reader{optional_reader{node, std::make_unique<field_reader>(std::move(child))}};
             });
         },
-        [&] (const reader_schema::map_node& node) {
-            return seastar::when_all_succeed(
-                    field_reader::make(fr, *node.key, row_group),
-                    field_reader::make(fr, *node.value, row_group)
-            ).then([&node] (field_reader key, field_reader value) {
-                return field_reader{map_reader{
+        [&] (const reader_schema::map_node& node)->seastar::future<field_reader> {
+            auto key = co_await field_reader::make(fr, *node.key, row_group);
+            auto value = co_await  field_reader::make(fr, *node.value, row_group);
+            co_return field_reader{map_reader{
                         node,
                         std::make_unique<field_reader>(std::move(key)),
                         std::make_unique<field_reader>(std::move(value))}};
-            });
         },
         [&] (const reader_schema::struct_node& node) {
             std::vector<seastar::future<field_reader>> field_readers;
