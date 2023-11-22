@@ -112,19 +112,23 @@ primitive_node build_primitive_node(const raw_node& r) {
         return primitive_node{{r.info, r.path, r.def_level, r.rep_level}, logical_type::read_logical_type(r.info),
                               r.column_index};
     } catch (const std::exception& e) {
-        throw parquet_exception(seastar::format("Error while processing schema node {}: {}",
-                r.path, e.what()));
+        // throw parquet_exception(seastar::format("Error while processing schema node {}: {}",
+                // r.path.front(), e.what()));
+        throw parquet_exception(seastar::format("Error while processing schema node: {}",
+                 e.what()));
     }
 }
 
 list_node build_list_node(const raw_node& r) {
     if (r.children.size() != 1 || r.info.repetition_type == format::FieldRepetitionType::REPEATED) {
-        throw parquet_exception::corrupted_file(seastar::format("Invalid list node: {}", r.info));
+        // throw parquet_exception::corrupted_file(seastar::format("Invalid list node: {}", r.info));
+        throw parquet_exception::corrupted_file(seastar::format("Invalid list node"));
     }
 
     const raw_node& repeated_node = r.children[0];
     if (repeated_node.info.repetition_type != format::FieldRepetitionType::REPEATED) {
-        throw parquet_exception::corrupted_file(seastar::format("Invalid list element node: {}", r.info));
+        // throw parquet_exception::corrupted_file(seastar::format("Invalid list element node: {}", r.info));
+        throw parquet_exception::corrupted_file(seastar::format("Invalid list element node"));
     }
 
     if ((repeated_node.children.size() != 1)
@@ -145,19 +149,22 @@ list_node build_list_node(const raw_node& r) {
 
 map_node build_map_node(const raw_node& r) {
     if (r.children.size() != 1) {
-        throw parquet_exception(seastar::format("Invalid map node: {}", r.info));
+        // throw parquet_exception(seastar::format("Invalid map node: {}", r.info));
+        throw parquet_exception(seastar::format("Invalid map node"));
     }
 
     const raw_node& repeated_node = r.children[0];
     if (repeated_node.children.size() != 2
         || repeated_node.info.repetition_type != format::FieldRepetitionType::REPEATED) {
-        throw parquet_exception(seastar::format("Invalid map node: {}", r.info));
+        // throw parquet_exception(seastar::format("Invalid map node: {}", r.info));
+        throw parquet_exception(seastar::format("Invalid map node"));
     }
 
     const raw_node& key_node = repeated_node.children[0];
     const raw_node& value_node = repeated_node.children[1];
     if (!key_node.children.empty()) {
-        throw parquet_exception(seastar::format("Invalid map node: {}", r.info));
+        // throw parquet_exception(seastar::format("Invalid map node: {}", r.info));
+        throw parquet_exception(seastar::format("Invalid map node"));
     }
 
     return map_node{

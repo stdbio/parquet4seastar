@@ -117,10 +117,14 @@ file_reader::open_column_chunk_reader_internal(uint32_t row_group, uint32_t colu
     assert(column < raw_schema().leaves.size());
     assert(row_group < metadata().row_groups.size());
     if (column >= metadata().row_groups[row_group].columns.size()) {
+        // return seastar::make_exception_future<column_chunk_reader<T>>(
+        //                 parquet_exception::corrupted_file(seastar::format(
+        //                         "Selected column metadata is missing from row group metadata: {}",
+        //                         metadata().row_groups[row_group])));
+
         return seastar::make_exception_future<column_chunk_reader<T>>(
                 parquet_exception::corrupted_file(seastar::format(
-                        "Selected column metadata is missing from row group metadata: {}",
-                        metadata().row_groups[row_group])));
+                        "Selected column metadata is missing from row group metadata")));
     }
     const format::ColumnChunk& column_chunk = metadata().row_groups[row_group].columns[column];
     const reader_schema::raw_node& leaf = *raw_schema().leaves[column];
