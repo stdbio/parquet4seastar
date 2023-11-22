@@ -30,8 +30,15 @@ list (APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package (Seastar REQUIRED)
 find_package (Snappy REQUIRED)
 find_package (ZLIB REQUIRED)
+
+
+
 set(MIN_Thrift_VERSION 0.11.0)
 find_package (Thrift ${MIN_Thrift_VERSION} REQUIRED)
+
+
+
+
 
 add_library (parquet4seastar STATIC
     include/parquet4seastar/bit_stream_utils.hh
@@ -136,3 +143,8 @@ enable_testing ()
 add_subdirectory (examples)
 add_subdirectory (tests)
 add_subdirectory (apps)
+
+
+# TODO(moyi): find thrift
+target_include_directories(${PROJECT_NAME} PUBLIC /usr/local/include/thrift)
+target_link_directories(${PROJECT_NAME} PUBLIC /usr/local/lib)

@@ -21,6 +21,7 @@
 
 add_custom_target (tests)
 
+
 function (seastar_add_test name)
   set (test_kinds SEASTAR BOOST)
 
@@ -89,15 +90,12 @@ function (seastar_add_test name)
 endfunction ()
 
 seastar_add_test (rle_encoding
-  KIND BOOST
   SOURCES rle_encoding_test.cc)
 
 seastar_add_test (compression
-  KIND BOOST
   SOURCES compression_test.cc)
 
 seastar_add_test (thrift_serdes_test
-  KIND BOOST
   SOURCES thrift_serdes_test.cc)
 
 seastar_add_test (cql_reader_alltypes
@@ -109,7 +107,6 @@ seastar_add_test (cql_reader
   SOURCES cql_reader_test.cc)
 
 seastar_add_test (dictionary_encoder
-  KIND BOOST
   SOURCES dictionary_encoder_test.cc)
 
 seastar_add_test (column_chunk_writer
@@ -119,17 +116,13 @@ seastar_add_test (file_writer
   SOURCES file_writer_test.cc)
 
 seastar_add_test (delta_binary_packed
-  KIND BOOST
   SOURCES delta_binary_packed_test.cc)
 
 seastar_add_test (delta_length_byte_array
-  KIND BOOST
   SOURCES delta_length_byte_array_test.cc)
 
 seastar_add_test (delta_byte_array
-  KIND BOOST
   SOURCES delta_byte_array_test.cc)
 
 seastar_add_test (byte_stream_split
-  KIND BOOST
   SOURCES byte_stream_split_test.cc)
