@@ -19,18 +19,18 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-#define BOOST_TEST_MODULE parquet
 
 #include <parquet4seastar/encoding.hh>
-#include <boost/test/included/unit_test.hpp>
+#include <seastar/testing/test_case.hh>
 #include <vector>
 #include <array>
+#include <seastar/core/thread.hh>
 
 constexpr parquet4seastar::bytes_view operator ""_bv(const char* str, size_t len) noexcept {
     return {static_cast<const uint8_t*>(static_cast<const void*>(str)), len};
 }
 
-BOOST_AUTO_TEST_CASE(happy) {
+SEASTAR_TEST_CASE(happy) {
     using namespace parquet4seastar;
     auto decoder = value_decoder<format::Type::BYTE_ARRAY>({});
 
@@ -87,4 +87,7 @@ BOOST_AUTO_TEST_CASE(happy) {
     BOOST_CHECK(std::equal(
             std::begin(out), std::end(out),
             std::begin(expected), std::end(expected)));
+
+
+    return seastar::async([](){});
 }

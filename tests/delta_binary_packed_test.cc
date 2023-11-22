@@ -19,15 +19,17 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-#define BOOST_TEST_MODULE parquet
 
 #include <parquet4seastar/encoding.hh>
-#include <boost/test/included/unit_test.hpp>
+#include <seastar/testing/test_case.hh>
 #include <vector>
 #include <array>
 #include <limits>
+#include <seastar/core/abort_on_ebadf.hh>
+#include <seastar/core/thread.hh>
 
-BOOST_AUTO_TEST_CASE(decoding) {
+SEASTAR_TEST_CASE(decoding)
+{
     using namespace parquet4seastar;
     auto decoder = value_decoder<format::Type::INT32>({});
 
@@ -87,9 +89,12 @@ BOOST_AUTO_TEST_CASE(decoding) {
     BOOST_CHECK_EQUAL_COLLECTIONS(
             std::begin(out), std::end(out),
             std::begin(expected), std::end(expected));
+
+
+    return seastar::async([](){});
 }
 
-BOOST_AUTO_TEST_CASE(encoding32) {
+SEASTAR_TEST_CASE(encoding32) {
     using namespace parquet4seastar;
     auto encoder = make_value_encoder<format::Type::INT32>(format::Encoding::DELTA_BINARY_PACKED);
     auto decoder = value_decoder<format::Type::INT32>({});
@@ -123,9 +128,11 @@ BOOST_AUTO_TEST_CASE(encoding32) {
                 std::begin(decoded), std::end(decoded),
                 std::begin(input), std::end(input));
     }
+
+    return seastar::async([](){});
 }
 
-BOOST_AUTO_TEST_CASE(encoding64) {
+SEASTAR_TEST_CASE(encoding64) {
     using namespace parquet4seastar;
     auto encoder = make_value_encoder<format::Type::INT64>(format::Encoding::DELTA_BINARY_PACKED);
     auto decoder = value_decoder<format::Type::INT64>({});
@@ -159,9 +166,10 @@ BOOST_AUTO_TEST_CASE(encoding64) {
                 std::begin(decoded), std::end(decoded),
                 std::begin(input), std::end(input));
     }
+    return seastar::async([](){});
 }
 
-BOOST_AUTO_TEST_CASE(encoding64_empty) {
+SEASTAR_TEST_CASE(encoding64_empty) {
     using namespace parquet4seastar;
     auto encoder = make_value_encoder<format::Type::INT64>(format::Encoding::DELTA_BINARY_PACKED);
     auto decoder = value_decoder<format::Type::INT64>({});
@@ -185,4 +193,5 @@ BOOST_AUTO_TEST_CASE(encoding64_empty) {
                 std::begin(decoded), std::end(decoded),
                 std::begin(input), std::end(input));
     }
+    return seastar::async([](){});
 }

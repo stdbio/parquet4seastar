@@ -19,14 +19,15 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-#define BOOST_TEST_MODULE parquet
 
 #include <parquet4seastar/encoding.hh>
-#include <boost/test/included/unit_test.hpp>
+#include <seastar/testing/test_case.hh>
 #include <vector>
 #include <array>
+#include <seastar/core/thread.hh>
 
-BOOST_AUTO_TEST_CASE(dict_encoder_trivial_happy) {
+SEASTAR_TEST_CASE(dict_encoder_trivial_happy)
+{
     using namespace parquet4seastar;
     auto encoder = make_value_encoder<format::Type::INT32>(format::Encoding::RLE_DICTIONARY);
     {
@@ -85,13 +86,15 @@ BOOST_AUTO_TEST_CASE(dict_encoder_trivial_happy) {
         BOOST_CHECK_EQUAL(std::size(dict), std::size(expected_dict));
         BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(dict), std::end(dict), std::begin(expected_dict), std::end(expected_dict));
     }
+
+    return seastar::async([](){});
 }
 
 constexpr parquet4seastar::bytes_view operator ""_bv(const char* str, size_t len) noexcept {
     return {static_cast<const uint8_t*>(static_cast<const void*>(str)), len};
 }
 
-BOOST_AUTO_TEST_CASE(dict_encoder_byte_array_happy) {
+SEASTAR_TEST_CASE(dict_encoder_byte_array_happy) {
     using namespace parquet4seastar;
     auto encoder = make_value_encoder<format::Type::BYTE_ARRAY>(format::Encoding::RLE_DICTIONARY);
     {
@@ -150,4 +153,5 @@ BOOST_AUTO_TEST_CASE(dict_encoder_byte_array_happy) {
         BOOST_CHECK_EQUAL(std::size(dict), std::size(expected_dict));
         BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(dict), std::end(dict), std::begin(expected_dict), std::end(expected_dict));
     }
+    return seastar::async([](){});
 }

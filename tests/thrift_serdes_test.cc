@@ -19,13 +19,14 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-#define BOOST_TEST_MODULE parquet
 
 #include <parquet4seastar/thrift_serdes.hh>
 #include <parquet4seastar/parquet_types.h>
-#include <boost/test/included/unit_test.hpp>
+#include <seastar/core/thread.hh>
+#include <seastar/testing/test_case.hh>
 
-BOOST_AUTO_TEST_CASE(thrift_serdes) {
+SEASTAR_TEST_CASE(thrift_serdes)
+{
     using namespace parquet4seastar;
     thrift_serializer serializer;
 
@@ -39,4 +40,7 @@ BOOST_AUTO_TEST_CASE(thrift_serdes) {
     deserialize_thrift_msg(serialized.data(), serialized.size(), fmd2);
 
     BOOST_CHECK(fmd2.schema[0].type == format::Type::DOUBLE);
+
+
+    return seastar::async([](){});
 }

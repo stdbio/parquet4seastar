@@ -44,7 +44,7 @@ SEASTAR_TEST_CASE(column_roundtrip) {
                 test_file_name.data(), seastar::open_flags::wo | seastar::open_flags::truncate | seastar::open_flags::create).get0();
 
         // Write
-        seastar::output_stream<char> output = seastar::make_file_output_stream(output_file);
+        seastar::output_stream<char> output = seastar::make_file_output_stream(output_file).get0(); // FIXME
         constexpr format::Type::type FLBA = format::Type::FIXED_LEN_BYTE_ARRAY;
         column_chunk_writer<FLBA> w{
             1,

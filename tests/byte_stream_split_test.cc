@@ -19,12 +19,12 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-#define BOOST_TEST_MODULE parquet
 
 #include <parquet4seastar/encoding.hh>
-#include <boost/test/included/unit_test.hpp>
+#include <seastar/testing/test_case.hh>
 #include <vector>
 #include <array>
+#include <seastar/core/thread.hh>
 
 void test_byte_stream_split_float() {
     using namespace parquet4seastar;
@@ -96,7 +96,8 @@ void test_byte_stream_split_double() {
             std::begin(expected_bytes), std::end(expected_bytes));
 }
 
-BOOST_AUTO_TEST_CASE(happy) {
+SEASTAR_TEST_CASE(happy) {
     test_byte_stream_split_float();
     test_byte_stream_split_double();
+    return seastar::async([](){});
 }
