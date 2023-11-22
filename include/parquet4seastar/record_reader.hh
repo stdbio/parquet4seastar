@@ -24,6 +24,8 @@
 #include <parquet4seastar/file_reader.hh>
 #include <parquet4seastar/reader_schema.hh>
 #include <limits>
+#include <seastar/core/when_all.hh>
+#include <seastar/core/sleep.hh>
 
 namespace parquet4seastar::record {
 
@@ -76,7 +78,7 @@ public:
     template <typename Consumer>
     seastar::future<> read_field(Consumer& c);
     seastar::future<> skip_field();
-    seastar::future<int, int> current_levels();
+    seastar::future<std::pair<int, int>> current_levels();
     const std::string& name() const { return _name; };
 
 private:
@@ -94,17 +96,12 @@ class struct_reader {
 public:
     explicit struct_reader(
             const reader_schema::struct_node& node,
-            std::vector<field_reader>&& readers)
-        : _readers(std::move(readers))
-        , _def_level{node.def_level}
-        , _rep_level{node.rep_level}
-        , _name(node.info.name) {
-    }
+            std::vector<field_reader>&& readers);
 
     template <typename Consumer>
     seastar::future<> read_field(Consumer& c);
     seastar::future<> skip_field();
-    seastar::future<int, int> current_levels();
+    seastar::future<std::pair<int, int>> current_levels();
     const std::string& name() const { return _name; };
 };
 
@@ -116,16 +113,12 @@ class list_reader {
 public:
     explicit list_reader(
             const reader_schema::list_node& node,
-            std::unique_ptr<field_reader> reader)
-        : _reader(std::move(reader))
-        , _def_level{node.def_level}
-        , _rep_level{node.rep_level}
-        , _name(node.info.name) {}
+            std::unique_ptr<field_reader> reader);
 
     template <typename Consumer>
     seastar::future<> read_field(Consumer& c);
     seastar::future<> skip_field();
-    seastar::future<int, int> current_levels();
+    seastar::future<std::pair<int, int>> current_levels();
     const std::string& name() const { return _name; };
 };
 
@@ -137,16 +130,12 @@ class optional_reader {
 public:
     explicit optional_reader(
             const reader_schema::optional_node &node,
-            std::unique_ptr<field_reader> reader)
-        : _reader(std::move(reader))
-        , _def_level{node.def_level}
-        , _rep_level{node.rep_level}
-        , _name(node.info.name) {}
+            std::unique_ptr<field_reader> reader);
 
     template <typename Consumer>
     seastar::future<> read_field(Consumer& c);
     seastar::future<> skip_field();
-    seastar::future<int, int> current_levels();
+    seastar::future<std::pair<int, int>> current_levels();
     const std::string& name() const { return _name; };
 };
 
@@ -160,17 +149,12 @@ public:
     explicit map_reader(
             const reader_schema::map_node& node,
             std::unique_ptr<field_reader> key_reader,
-            std::unique_ptr<field_reader> value_reader)
-        : _key_reader(std::move(key_reader))
-        , _value_reader(std::move(value_reader))
-        , _def_level{node.def_level}
-        , _rep_level{node.rep_level}
-        , _name(node.info.name) {}
+            std::unique_ptr<field_reader> value_reader);
 
     template <typename Consumer>
     seastar::future<> read_field(Consumer& c);
     seastar::future<> skip_field();
-    seastar::future<int, int> current_levels();
+    seastar::future<std::pair<int, int>> current_levels();
     const std::string& name() const { return _name; };
 private:
     template <typename Consumer>
@@ -224,7 +208,7 @@ struct field_reader {
     seastar::future<> skip_field() {
         return std::visit([](auto& x) {return x.skip_field();}, _reader);
     }
-    seastar::future<int, int> current_levels() {
+    seastar::future<std::pair<int, int>> current_levels() {
         return std::visit([](auto& x) {return x.current_levels();}, _reader);
     }
     static seastar::future<field_reader>
@@ -242,7 +226,7 @@ class record_reader {
 public:
     template <typename Consumer> seastar::future<> read_one(Consumer& c);
     template <typename Consumer> seastar::future<> read_all(Consumer& c);
-    seastar::future<int, int> current_levels();
+    seastar::future<std::pair<int, int>> current_levels();
     static seastar::future<record_reader> make(file_reader& fr, int row_group);
 };
 
@@ -272,11 +256,13 @@ inline seastar::future<> struct_reader::read_field(Consumer& c) {
 template <typename Consumer>
 inline seastar::future<> list_reader::read_field(Consumer& c) {
     c.start_list();
-    return current_levels().then([this, &c] (int def, int) {
+    return current_levels().then([this, &c] ( std::pair<int,int >  level) {
+        auto def = level.first;
         if (def > static_cast<int>(_def_level)) {
             return _reader->read_field(c).then([this, &c] {
                 return seastar::repeat([this, &c] {
-                    return current_levels().then([this, &c] (int def, int rep) {
+                    return current_levels().then([this, &c] (std::pair<int,int> level) {
+                        auto [def,rep] = level;
                         if (rep > static_cast<int>(_rep_level)) {
                             c.separate_list_values();
                             return _reader->read_field(c).then([] {
@@ -298,7 +284,8 @@ inline seastar::future<> list_reader::read_field(Consumer& c) {
 
 template <typename Consumer>
 inline seastar::future<> optional_reader::read_field(Consumer& c) {
-    return current_levels().then([this, &c] (int def, int) {
+    return current_levels().then([this, &c] (std::pair<int,int> level) {
+        auto def = level.first;
         if (def > static_cast<int>(_def_level)) {
             return _reader->read_field(c);
         } else {
@@ -311,11 +298,13 @@ inline seastar::future<> optional_reader::read_field(Consumer& c) {
 template <typename Consumer>
 inline seastar::future<> map_reader::read_field(Consumer& c) {
     c.start_map();
-    return current_levels().then([this, &c] (int def, int) {
+    return current_levels().then([this, &c] (std::pair<int,int> level) {
+        auto def = level.first;
         if (def > static_cast<int>(_def_level)) {
             return read_pair<Consumer>(c).then([this, &c] {
                 return seastar::repeat([this, &c] {
-                    return current_levels().then([this, &c] (int def, int rep) {
+                    return current_levels().then([this, &c] (std::pair<int,int> level) {
+                        auto [def, rep] = level;
                         if (rep > static_cast<int>(_rep_level)) {
                             c.separate_map_values();
                             return read_pair<Consumer>(c).then([this, &c] {
@@ -349,9 +338,9 @@ inline seastar::future<> struct_reader::skip_field() {
     });
 }
 
-inline seastar::future<int, int> struct_reader::current_levels() {
+inline seastar::future<std::pair<int, int>> struct_reader::current_levels() {
     if (_readers.empty()) {
-        return seastar::make_ready_future<int, int>(-1, -1);
+        return seastar::make_ready_future<std::pair<int, int>>(-1, -1);
     }
     return _readers[0].current_levels();
 }
@@ -359,7 +348,7 @@ inline seastar::future<> list_reader::skip_field() {
     return _reader->skip_field();
 }
 
-inline seastar::future<int, int> list_reader::current_levels() {
+inline seastar::future<std::pair<int, int>> list_reader::current_levels() {
     return _reader->current_levels();
 }
 
@@ -367,23 +356,24 @@ inline seastar::future<> optional_reader::skip_field() {
     return _reader->skip_field();
 }
 
-inline seastar::future<int, int> optional_reader::current_levels() {
+inline seastar::future<std::pair<int, int>> optional_reader::current_levels() {
     return _reader->current_levels();
 }
 
+
 inline seastar::future<> map_reader::skip_field() {
-    return seastar::when_all_succeed(
-            _key_reader->skip_field(),
-            _value_reader->skip_field());
+    co_await _key_reader->skip_field();
+    co_await _value_reader->skip_field();
+    co_return ;
 }
 
-inline seastar::future<int, int> map_reader::current_levels() {
+inline seastar::future<std::pair<int, int>> map_reader::current_levels() {
     return _key_reader->current_levels();
 }
 
-inline seastar::future<int, int> record_reader::current_levels() {
+inline seastar::future<std::pair<int, int>> record_reader::current_levels() {
     if (_field_readers.empty()) {
-        return seastar::make_ready_future<int, int>(-1, -1);
+        return seastar::make_ready_future<std::pair<int, int>>(-1, -1);
     }
     return _field_readers[0].current_levels();
 }
@@ -399,12 +389,12 @@ inline seastar::future<> typed_primitive_reader<L>::skip_field() {
 }
 
 template <typename L>
-inline seastar::future<int, int> typed_primitive_reader<L>::current_levels() {
+inline seastar::future<std::pair<int, int>> typed_primitive_reader<L>::current_levels() {
     return refill_when_empty().then([this] {
         if (!_levels_buffered) {
-            return seastar::make_ready_future<int, int>(-1, -1);
+            return seastar::make_ready_future<std::pair<int, int>>(-1, -1);
         } else {
-            return seastar::make_ready_future<int, int>(current_def_level(), current_rep_level());
+            return seastar::make_ready_future<std::pair<int, int>>(current_def_level(), current_rep_level());
         }
     });
 }
@@ -470,7 +460,8 @@ template <typename Consumer>
 inline seastar::future<> record_reader::read_one(Consumer& c) {
     c.start_record();
     return seastar::do_for_each(_field_readers, [this, &c] (auto& child) {
-        return child.current_levels().then([this, &c, &child] (int def, int) {
+        return child.current_levels().then([this, &c, &child] (std::pair<int,int> level) {
+            auto def = level.first;
             c.start_column(child.name());
             return std::visit(overloaded {
                 [this, def, &c] (optional_reader& typed_child) {
@@ -494,7 +485,8 @@ inline seastar::future<> record_reader::read_one(Consumer& c) {
 template <typename Consumer>
 inline seastar::future<> record_reader::read_all(Consumer& c) {
     return seastar::repeat([this, &c] {
-        return current_levels().then([this, &c] (int def, int) {
+        return current_levels().then([this, &c] (std::pair<int,int> level) {
+            auto def = level.first;
             if (def < 0) {
                 return seastar::make_ready_future<seastar::stop_iteration>(seastar::stop_iteration::yes);
             } else {

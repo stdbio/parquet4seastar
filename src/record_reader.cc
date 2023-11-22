@@ -25,6 +25,43 @@
 
 namespace parquet4seastar::record {
 
+
+    map_reader::map_reader(
+                const reader_schema::map_node& node,
+                std::unique_ptr<field_reader> key_reader,
+                std::unique_ptr<field_reader> value_reader)
+            : _key_reader(std::move(key_reader))
+            , _value_reader(std::move(value_reader))
+            , _def_level{node.def_level}
+    , _rep_level{node.rep_level}
+    , _name(node.info.name) {}
+
+    struct_reader::struct_reader(
+                const reader_schema::struct_node& node,
+                std::vector<field_reader>&& readers)
+            : _readers(std::move(readers))
+            , _def_level{node.def_level}
+    , _rep_level{node.rep_level}
+    , _name(node.info.name) {
+    }
+
+    list_reader::list_reader(
+                const reader_schema::list_node& node,
+                std::unique_ptr<field_reader> reader)
+            : _reader(std::move(reader))
+            , _def_level{node.def_level}
+    , _rep_level{node.rep_level}
+    , _name(node.info.name) {}
+
+
+    optional_reader::optional_reader(
+            const reader_schema::optional_node &node,
+            std::unique_ptr<field_reader> reader)
+        : _reader(std::move(reader))
+        , _def_level{node.def_level}
+    , _rep_level{node.rep_level}
+    , _name(node.info.name) {}
+
 seastar::future<field_reader> field_reader::make(file_reader& fr, const reader_schema::node& node_variant, int row_group) {
     return std::visit(overloaded {
         [&] (const reader_schema::primitive_node& node) -> seastar::future<field_reader> {
@@ -45,16 +82,13 @@ seastar::future<field_reader> field_reader::make(file_reader& fr, const reader_s
                 return field_reader{optional_reader{node, std::make_unique<field_reader>(std::move(child))}};
             });
         },
-        [&] (const reader_schema::map_node& node) {
-            return seastar::when_all_succeed(
-                    field_reader::make(fr, *node.key, row_group),
-                    field_reader::make(fr, *node.value, row_group)
-            ).then([&node] (field_reader key, field_reader value) {
-                return field_reader{map_reader{
+        [&] (const reader_schema::map_node& node)->seastar::future<field_reader> {
+            auto key = co_await field_reader::make(fr, *node.key, row_group);
+            auto value = co_await  field_reader::make(fr, *node.value, row_group);
+            co_return field_reader{map_reader{
                         node,
                         std::make_unique<field_reader>(std::move(key)),
                         std::make_unique<field_reader>(std::move(value))}};
-            });
         },
         [&] (const reader_schema::struct_node& node) {
             std::vector<seastar::future<field_reader>> field_readers;

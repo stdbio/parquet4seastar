@@ -26,6 +26,7 @@
 #include <parquet4seastar/encoding.hh>
 #include <boost/iterator/counting_iterator.hpp>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace parquet4seastar {
