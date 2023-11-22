@@ -97,7 +97,7 @@ public:
                     | seastar::open_flags::truncate;
             return seastar::open_file_dma(path, flags).then(
             [fw = std::move(fw)] (seastar::file file) mutable {
-                fw->_sink = seastar::make_file_output_stream(file);
+                fw->_sink = seastar::make_file_output_stream(file).get(); // FIXME(moyi): co_await
                 fw->_file_offset = 4;
                 return fw->_sink.write("PAR1", 4).then(
                 [fw = std::move(fw)] () mutable {
