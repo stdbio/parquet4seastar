@@ -96,12 +96,7 @@ class struct_reader {
 public:
     explicit struct_reader(
             const reader_schema::struct_node& node,
-            std::vector<field_reader>&& readers)
-        : _readers(std::move(readers))
-        , _def_level{node.def_level}
-        , _rep_level{node.rep_level}
-        , _name(node.info.name) {
-    }
+            std::vector<field_reader>&& readers);
 
     template <typename Consumer>
     seastar::future<> read_field(Consumer& c);
@@ -118,11 +113,7 @@ class list_reader {
 public:
     explicit list_reader(
             const reader_schema::list_node& node,
-            std::unique_ptr<field_reader> reader)
-        : _reader(std::move(reader))
-        , _def_level{node.def_level}
-        , _rep_level{node.rep_level}
-        , _name(node.info.name) {}
+            std::unique_ptr<field_reader> reader);
 
     template <typename Consumer>
     seastar::future<> read_field(Consumer& c);
@@ -139,11 +130,7 @@ class optional_reader {
 public:
     explicit optional_reader(
             const reader_schema::optional_node &node,
-            std::unique_ptr<field_reader> reader)
-        : _reader(std::move(reader))
-        , _def_level{node.def_level}
-        , _rep_level{node.rep_level}
-        , _name(node.info.name) {}
+            std::unique_ptr<field_reader> reader);
 
     template <typename Consumer>
     seastar::future<> read_field(Consumer& c);
@@ -162,12 +149,7 @@ public:
     explicit map_reader(
             const reader_schema::map_node& node,
             std::unique_ptr<field_reader> key_reader,
-            std::unique_ptr<field_reader> value_reader)
-        : _key_reader(std::move(key_reader))
-        , _value_reader(std::move(value_reader))
-        , _def_level{node.def_level}
-        , _rep_level{node.rep_level}
-        , _name(node.info.name) {}
+            std::unique_ptr<field_reader> value_reader);
 
     template <typename Consumer>
     seastar::future<> read_field(Consumer& c);
