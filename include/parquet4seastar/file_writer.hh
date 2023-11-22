@@ -26,6 +26,7 @@
 #include <parquet4seastar/writer_schema.hh>
 #include <parquet4seastar/y_combinator.hh>
 #include <seastar/core/seastar.hh>
+#include <utility>
 
 namespace parquet4seastar {
 
@@ -82,28 +83,29 @@ private:
     }
 
 public:
+
+    static seastar::future<std::unique_ptr<file_writer>>
+    open_and_write_par1(const std::string& path, const writer_schema::schema& schema) {
+        auto fw = std::make_unique<file_writer>();
+        writer_schema::write_schema_result wsr = writer_schema::write_schema(schema);
+        fw->_metadata.schema = std::move(wsr.elements);
+        fw->_leaf_paths = std::move(wsr.leaf_paths);
+        fw->init_writers(schema);
+        seastar::open_flags flags
+                = seastar::open_flags::wo
+                | seastar::open_flags::create
+                | seastar::open_flags::truncate;
+        auto file = co_await seastar::open_file_dma(path, flags);
+        fw->_sink = co_await seastar::make_file_output_stream(file);
+        fw->_file_offset = 4;
+        co_await fw->_sink.write("PAR1", 4);
+        co_return fw;
+    }
+
     static seastar::future<std::unique_ptr<file_writer>>
     open(const std::string& path, const writer_schema::schema& schema) {
         return seastar::futurize_invoke([&schema, path] {
-            auto fw = std::make_unique<file_writer>();
-            writer_schema::write_schema_result wsr = writer_schema::write_schema(schema);
-            fw->_metadata.schema = std::move(wsr.elements);
-            fw->_leaf_paths = std::move(wsr.leaf_paths);
-            fw->init_writers(schema);
-
-            seastar::open_flags flags
-                    = seastar::open_flags::wo
-                    | seastar::open_flags::create
-                    | seastar::open_flags::truncate;
-            return seastar::open_file_dma(path, flags).then(
-            [fw = std::move(fw)] (seastar::file file) mutable {
-                fw->_sink = seastar::make_file_output_stream(file).get(); // FIXME(moyi): co_await
-                fw->_file_offset = 4;
-                return fw->_sink.write("PAR1", 4).then(
-                [fw = std::move(fw)] () mutable {
-                    return std::move(fw);
-                });
-            });
+            return open_and_write_par1(path , schema);
         });
     }
 
