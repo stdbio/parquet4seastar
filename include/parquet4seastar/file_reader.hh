@@ -27,19 +27,23 @@
 
 namespace parquet4seastar {
 
-class file_reader {
+class file_reader
+{
     std::string _path;
     seastar::file _file;
-    std::unique_ptr<format::FileMetaData> _metadata;
-    std::unique_ptr<reader_schema::schema> _schema;
-    std::unique_ptr<reader_schema::raw_schema> _raw_schema;
-private:
-    file_reader() {};
+    std::unique_ptr<format::FileMetaData> _metadata = nullptr;
+    std::unique_ptr<reader_schema::schema> _schema = nullptr;
+    std::unique_ptr<reader_schema::raw_schema> _raw_schema = nullptr;
+
+   private:
     static seastar::future<std::unique_ptr<format::FileMetaData>> read_file_metadata(seastar::file file);
     template <format::Type::type T>
-    seastar::future<column_chunk_reader<T>>
-    open_column_chunk_reader_internal(uint32_t row_group, uint32_t column);
-public:
+    seastar::future<column_chunk_reader<T>> open_column_chunk_reader_internal(uint32_t row_group, uint32_t column);
+
+   public:
+    file_reader() = delete;
+    file_reader(std::string path, seastar::file file, std::unique_ptr<format::FileMetaData> meta)
+        : _path(path), _file(file), _metadata(std::move(meta)){};
     // The entry point to this library.
     static seastar::future<file_reader> open(std::string path);
     seastar::future<> close() { return _file.close(); };
@@ -52,7 +56,8 @@ public:
     // higher level metadata cannot be understood/validated by our reader.
     const reader_schema::raw_schema& raw_schema() {
         if (!_raw_schema) {
-            _raw_schema = std::make_unique<reader_schema::raw_schema>(reader_schema::flat_schema_to_raw_schema(metadata().schema));
+            _raw_schema =
+              std::make_unique<reader_schema::raw_schema>(reader_schema::flat_schema_to_raw_schema(metadata().schema));
         }
         return *_raw_schema;
     }
@@ -67,21 +72,21 @@ public:
     seastar::future<column_chunk_reader<T>> open_column_chunk_reader(uint32_t row_group, uint32_t column);
 };
 
-extern template seastar::future<column_chunk_reader<format::Type::INT32>>
-file_reader::open_column_chunk_reader(uint32_t row_group, uint32_t column);
-extern template seastar::future<column_chunk_reader<format::Type::INT64>>
-file_reader::open_column_chunk_reader(uint32_t row_group, uint32_t column);
-extern template seastar::future<column_chunk_reader<format::Type::INT96>>
-file_reader::open_column_chunk_reader(uint32_t row_group, uint32_t column);
-extern template seastar::future<column_chunk_reader<format::Type::FLOAT>>
-file_reader::open_column_chunk_reader(uint32_t row_group, uint32_t column);
-extern template seastar::future<column_chunk_reader<format::Type::DOUBLE>>
-file_reader::open_column_chunk_reader(uint32_t row_group, uint32_t column);
-extern template seastar::future<column_chunk_reader<format::Type::BOOLEAN>>
-file_reader::open_column_chunk_reader(uint32_t row_group, uint32_t column);
-extern template seastar::future<column_chunk_reader<format::Type::BYTE_ARRAY>>
-file_reader::open_column_chunk_reader(uint32_t row_group, uint32_t column);
+extern template seastar::future<column_chunk_reader<format::Type::INT32>> file_reader::open_column_chunk_reader(
+  uint32_t row_group, uint32_t column);
+extern template seastar::future<column_chunk_reader<format::Type::INT64>> file_reader::open_column_chunk_reader(
+  uint32_t row_group, uint32_t column);
+extern template seastar::future<column_chunk_reader<format::Type::INT96>> file_reader::open_column_chunk_reader(
+  uint32_t row_group, uint32_t column);
+extern template seastar::future<column_chunk_reader<format::Type::FLOAT>> file_reader::open_column_chunk_reader(
+  uint32_t row_group, uint32_t column);
+extern template seastar::future<column_chunk_reader<format::Type::DOUBLE>> file_reader::open_column_chunk_reader(
+  uint32_t row_group, uint32_t column);
+extern template seastar::future<column_chunk_reader<format::Type::BOOLEAN>> file_reader::open_column_chunk_reader(
+  uint32_t row_group, uint32_t column);
+extern template seastar::future<column_chunk_reader<format::Type::BYTE_ARRAY>> file_reader::open_column_chunk_reader(
+  uint32_t row_group, uint32_t column);
 extern template seastar::future<column_chunk_reader<format::Type::FIXED_LEN_BYTE_ARRAY>>
 file_reader::open_column_chunk_reader(uint32_t row_group, uint32_t column);
 
-} // namespace parquet4seastar
+}  // namespace parquet4seastar

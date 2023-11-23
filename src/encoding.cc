@@ -61,7 +61,7 @@ size_t level_decoder::reset_v1(
         _decoder = BitReader{buffer.data(), static_cast<int>(byte_len)};
         return byte_len;
     } else {
-        throw parquet_exception(seastar::format("Unknown level encoding ({})", encoding));
+        throw parquet_exception(seastar::format("Unknown level encoding ({})", static_cast<int32_t>(encoding)));
     }
 }
 
@@ -580,7 +580,7 @@ void value_decoder<ParquetType>::reset(bytes_view buf, format::Encoding::type en
             }
             break;
         default:
-            throw parquet_exception(seastar::format("Encoding {} not implemented", encoding));
+            throw parquet_exception(seastar::format("Encoding {} not implemented", static_cast<int32_t>(encoding)));
     }
     _decoder->reset(buf);
 };
@@ -1004,11 +1004,11 @@ make_value_encoder(format::Encoding::type encoding) {
     }
     const auto not_implemented = [&] () {
         return parquet_exception(seastar::format(
-                "Encoding type {} as {} is not implemented yet", ParquetType, encoding));
+                "Encoding type {} as {} is not implemented yet", static_cast<int32_t>(ParquetType), static_cast<int32_t>( encoding)));
     };
     const auto invalid = [&] () {
         return parquet_exception(seastar::format(
-                "Encoding {} is invalid for type {}", encoding, ParquetType));
+                "Encoding {} is invalid for type {}", static_cast<int32_t>( encoding), static_cast<int32_t>(ParquetType)));
     };
     if (encoding == format::Encoding::PLAIN) {
         return std::make_unique<plain_encoder<ParquetType>>();
@@ -1044,7 +1044,7 @@ make_value_encoder(format::Encoding::type encoding) {
     } else if (encoding == format::Encoding::BYTE_STREAM_SPLIT) {
         throw not_implemented();
     }
-    throw parquet_exception(seastar::format("Unknown encoding ({})", encoding));
+    throw parquet_exception(seastar::format("Unknown encoding ({})", static_cast<int32_t>(encoding)));
 }
 
 template std::unique_ptr<value_encoder<format::Type::INT32>>

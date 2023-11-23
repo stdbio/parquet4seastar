@@ -406,21 +406,14 @@ seastar::future<> parquet_to_cql(file_reader& fr, const std::string& table, cons
     std::string quoted_table = quote_identifier(table);
     cql_schema schema = parquet_schema_to_cql_schema(fr.schema(), table);
     out << cql_schema_to_cql_create(schema, quoted_table, quoted_pk);
-    return seastar::do_with(cql_consumer{out, cql_schema_to_cql_column_list(schema, quoted_table, quoted_pk)},
-    [&fr] (cql_consumer& consumer) {
-        return seastar::do_for_each(
-        boost::counting_iterator<int>(0),
-        boost::counting_iterator<int>(fr.metadata().row_groups.size()),
-        [&fr, &consumer] (int row_group) {
-            return record::record_reader::make(fr, row_group).then(
-            [&consumer] (record::record_reader rr) {
-                return seastar::do_with(std::move(rr),
-                [&consumer] (record::record_reader& rr) {
-                    return rr.read_all(consumer);
-                });
-            });
-        });
-    });
+    auto meta = fr.metadata();
+    auto first = boost::counting_iterator<int>(0);
+    auto last = boost::counting_iterator<int>(fr.metadata().row_groups.size());
+    auto consumer = cql_consumer{out, cql_schema_to_cql_column_list(schema, quoted_table, quoted_pk)};
+    for(auto row_group = first ;row_group != last;++row_group) {
+        auto rr = co_await record::record_reader::make(fr, *row_group);
+        co_await rr.read_all(consumer);
+    }
 }
 
 } // namespace parquet4seastar::cql

@@ -35,7 +35,7 @@ raw_schema compute_shape(const std::vector<format::SchemaElement>& flat_schema) 
     size_t index = 0;
     raw_node root = y_combinator{[&] (auto&& convert) -> raw_node {
         if (index >= flat_schema.size()) {
-            throw parquet_exception::corrupted_file("Could not build schema tree: unexpected end of flat schema");
+            throw parquet_exception::corrupted_file(seastar::format("Could not build schema tree: unexpected end of flat schema {} {}", index, flat_schema.size()));
         }
         const format::SchemaElement &current = flat_schema[index];
         ++index;

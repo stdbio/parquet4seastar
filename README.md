@@ -51,14 +51,14 @@ can be added by merging #2.
 ```testcase
 byte_stream_split_test          1/1
 compression_test                3/3
-cql_reader_test                 Segmentation fault
+cql_reader_test                 1/1
 delta_binary_packed_test        4/4
 delta_length_byte_array_test    1/1
-file_writer_test                Segmentation fault
+file_writer_test                1/1
 rle_encoding_test               12/12
 thrift_serdes_test_test         1/1       
 column_chunk_writer_test        1/1
-cql_reader_alltypes_test        5/6
+cql_reader_alltypes_test        6/6
 delta_byte_array_test           1/1
 dictionary_encoder_test         2/2
 ```
