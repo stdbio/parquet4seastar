@@ -23,9 +23,9 @@
 #include <parquet4seastar/cql_reader.hh>
 #include <parquet4seastar/overloaded.hh>
 #include <parquet4seastar/y_combinator.hh>
-#include <boost/iterator/counting_iterator.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <iomanip>
+#include <ranges>
 
 namespace parquet4seastar::cql {
 
@@ -406,12 +406,9 @@ seastar::future<> parquet_to_cql(file_reader& fr, const std::string& table, cons
     std::string quoted_table = quote_identifier(table);
     cql_schema schema = parquet_schema_to_cql_schema(fr.schema(), table);
     out << cql_schema_to_cql_create(schema, quoted_table, quoted_pk);
-    auto meta = fr.metadata();
-    auto first = boost::counting_iterator<int>(0);
-    auto last = boost::counting_iterator<int>(fr.metadata().row_groups.size());
     auto consumer = cql_consumer{out, cql_schema_to_cql_column_list(schema, quoted_table, quoted_pk)};
-    for(auto row_group = first ;row_group != last;++row_group) {
-        auto rr = co_await record::record_reader::make(fr, *row_group);
+    for(auto row_group: std::ranges::iota_view(0, static_cast<int>(fr.metadata().row_groups.size()))) {
+        auto rr = co_await record::record_reader::make(fr, row_group);
         co_await rr.read_all(consumer);
     }
 }
