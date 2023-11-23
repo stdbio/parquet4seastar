@@ -146,16 +146,15 @@ seastar::future<column_chunk_reader<T>> file_reader::open_column_chunk_reader_in
 
 template <format::Type::type T>
 seastar::future<column_chunk_reader<T>> file_reader::open_column_chunk_reader(uint32_t row_group, uint32_t column) {
-    co_return co_await open_column_chunk_reader_internal<T>(row_group, column);
-    // return open_column_chunk_reader_internal<T>(row_group, column)
-    //   .handle_exception([column, row_group](std::exception_ptr eptr) {
-    //       try {
-    //           std::rethrow_exception(eptr);
-    //       } catch (const std::exception& e) {
-    //           return seastar::make_exception_future<column_chunk_reader<T>>(parquet_exception(
-    //             seastar::format("Could not open column chunk {} in row group {}: {}", column, row_group, e.what())));
-    //       }
-    //   });
+    return open_column_chunk_reader_internal<T>(row_group, column)
+      .handle_exception([column, row_group](std::exception_ptr eptr) {
+          try {
+              std::rethrow_exception(eptr);
+          } catch (const std::exception& e) {
+              return seastar::make_exception_future<column_chunk_reader<T>>(parquet_exception(
+                seastar::format("Could not open column chunk {} in row group {}: {}", column, row_group, e.what())));
+          }
+      });
 }
 
 template seastar::future<column_chunk_reader<format::Type::INT32>> file_reader::open_column_chunk_reader(

@@ -20,7 +20,6 @@
  */
 
 #include <parquet4seastar/file_reader.hh>
-#include <parquet4seastar/overloaded.hh>
 #include <parquet4seastar/record_reader.hh>
 
 namespace parquet4seastar::record {
@@ -43,21 +42,23 @@ optional_reader::optional_reader(const reader_schema::optional_node& node, std::
 
 namespace {
 
-auto make_reader(file_reader& fr, const reader_schema::primitive_node& node, int row_group) -> seastar::future<field_reader> {
+auto make_reader(file_reader& fr, const reader_schema::primitive_node& node, int row_group)
+  -> seastar::future<field_reader> {
     co_return std::visit(
       [&, row_group](auto logical_type) -> seastar::future<field_reader> {
           auto ccr = co_await fr.open_column_chunk_reader<logical_type.physical_type>(row_group, node.column_index);
-          auto rr = typed_primitive_reader<decltype(logical_type)>{node, std::move(ccr)};
-          co_return rr;
+          co_return typed_primitive_reader<decltype(logical_type)>{node, std::move(ccr)};
       },
       node.logical_type);
 }
-auto make_reader(file_reader& fr, const reader_schema::list_node& node, int row_group) -> seastar::future<field_reader> {
+auto make_reader(file_reader& fr, const reader_schema::list_node& node, int row_group)
+  -> seastar::future<field_reader> {
     auto child = co_await field_reader::make(fr, *node.element, row_group);
     co_return list_reader{node, std::make_unique<field_reader>(std::move(child))};
 }
 
-auto make_reader(file_reader& fr, const reader_schema::optional_node& node, int row_group) -> seastar::future<field_reader> {
+auto make_reader(file_reader& fr, const reader_schema::optional_node& node, int row_group)
+  -> seastar::future<field_reader> {
     auto child = co_await field_reader::make(fr, *node.child, row_group);
     co_return optional_reader{node, std::make_unique<field_reader>(std::move(child))};
 }
@@ -69,7 +70,8 @@ auto make_reader(file_reader& fr, const reader_schema::map_node& node, int row_g
                          std::make_unique<field_reader>(std::move(value))};
 }
 
-auto make_reader(file_reader& fr, const reader_schema::struct_node& node, int row_group) -> seastar::future<field_reader> {
+auto make_reader(file_reader& fr, const reader_schema::struct_node& node, int row_group)
+  -> seastar::future<field_reader> {
     std::vector<field_reader> field_readers;
     field_readers.reserve(node.fields.size());
     for (const reader_schema::node& child : node.fields) {
