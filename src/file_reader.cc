@@ -117,7 +117,7 @@ seastar::future<column_chunk_reader<T>> file_reader::open_column_chunk_reader_in
         //                 parquet_exception::corrupted_file(seastar::format(
         //                         "Selected column metadata is missing from row group metadata: {}",
         //                         metadata().row_groups[row_group])));
-        co_return seastar::make_exception_future<column_chunk_reader<T>>(parquet_exception::corrupted_file(
+        co_return co_await seastar::make_exception_future<column_chunk_reader<T>>(parquet_exception::corrupted_file(
           seastar::format("Selected column metadata is missing from row group metadata")));
     }
     const format::ColumnChunk& column_chunk = metadata().row_groups[row_group].columns[column];

@@ -48,6 +48,21 @@ GZIP and Snappy are the only compression libraries used by default.
 Support for other compression libraries used in Parquet files
 can be added by merging #2.
 
+```run test
+./byte_stream_split_test          
+./compression_test                
+./cql_reader_test                
+./delta_binary_packed_test       
+./delta_length_byte_array_test   
+./file_writer_test               
+./rle_encoding_test              
+./thrift_serdes_test_test               
+./column_chunk_writer_test       
+./cql_reader_alltypes_test       
+./delta_byte_array_test          
+./dictionary_encoder_test        
+```
+
 ```testcase
 byte_stream_split_test          1/1
 compression_test                3/3

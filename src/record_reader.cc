@@ -44,8 +44,8 @@ namespace {
 
 auto make_reader(file_reader& fr, const reader_schema::primitive_node& node, int row_group)
   -> seastar::future<field_reader> {
-    co_return std::visit(
-      [&, row_group](auto logical_type) -> seastar::future<field_reader> {
+    co_return co_await std::visit(
+      [&fr, &node, row_group](auto logical_type) -> seastar::future<field_reader> {
           auto ccr = co_await fr.open_column_chunk_reader<logical_type.physical_type>(row_group, node.column_index);
           co_return typed_primitive_reader<decltype(logical_type)>{node, std::move(ccr)};
       },
