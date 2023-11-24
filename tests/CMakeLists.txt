@@ -21,7 +21,6 @@
 
 add_custom_target (tests)
 
-
 function (seastar_add_test name)
   set (test_kinds SEASTAR BOOST)
 

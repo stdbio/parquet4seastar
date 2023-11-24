@@ -153,7 +153,7 @@ std::unique_ptr<compressor> compressor::make(format::CompressionCodec::type comp
     } else if (compression == format::CompressionCodec::SNAPPY) {
         return std::make_unique<snappy_compressor>();
     } else {
-        throw parquet_exception(seastar::format("Unsupported compression ({})", compression));
+        throw parquet_exception(seastar::format("Unsupported compression ({})", static_cast<int32_t>(compression)));
     }
 }
 

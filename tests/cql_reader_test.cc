@@ -216,10 +216,11 @@ CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "mycol" double);
 INSERT INTO "parquet"("row_number", "mycol") VALUES(0, null);
 )###"},
         }; // test_cases
+        std::string path = "/home/moyi/tmp/tmp.Up1Hmh0aGD/tests/test_data/parquet-testing/";
         for (const auto& [filename, output] : test_cases) {
             std::stringstream ss;
             ss << '\n';
-            future<file_reader> future_reader = file_reader::open(filename);
+            future<file_reader> future_reader = file_reader::open(path+ filename);
             file_reader reader = future_reader.handle_exception([] (auto eptr) {
                 std::string hint =
                         "Make sure that the parquet-testing submodule is initialized"

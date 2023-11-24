@@ -90,8 +90,8 @@ private:
 
 class struct_reader {
     std::vector<field_reader> _readers;
-    uint32_t _def_level;
-    uint32_t _rep_level;
+    [[maybe_unused]] uint32_t _def_level;
+    [[maybe_unused]] uint32_t _rep_level;
     std::string _name;
 public:
     explicit struct_reader(
@@ -125,7 +125,7 @@ public:
 class optional_reader {
     std::unique_ptr<field_reader> _reader;
     uint32_t _def_level;
-    uint32_t _rep_level;
+    [[maybe_unused]] uint32_t _rep_level;
     std::string _name;
 public:
     explicit optional_reader(
@@ -216,7 +216,7 @@ struct field_reader {
 };
 
 class record_reader {
-    const reader_schema::schema& _schema;
+    [[maybe_unused]] const reader_schema::schema& _schema;
     std::vector<field_reader> _field_readers;
     explicit record_reader(
             const reader_schema::schema& schema,
@@ -245,7 +245,7 @@ inline seastar::future<> typed_primitive_reader<L>::read_field(Consumer& c) {
 template <typename Consumer>
 inline seastar::future<> struct_reader::read_field(Consumer& c) {
     c.start_struct();
-    return seastar::do_for_each(_readers, [this, &c] (auto& child) mutable {
+    return seastar::do_for_each(_readers, [&c] (auto& child) mutable {
         c.start_field(child.name());
         return child.read_field(c);
     }).then([&c] {
@@ -307,7 +307,7 @@ inline seastar::future<> map_reader::read_field(Consumer& c) {
                         auto [def, rep] = level;
                         if (rep > static_cast<int>(_rep_level)) {
                             c.separate_map_values();
-                            return read_pair<Consumer>(c).then([this, &c] {
+                            return read_pair<Consumer>(c).then([] {
                                 return seastar::stop_iteration::no;
                             });
                         } else {
@@ -381,7 +381,7 @@ inline seastar::future<std::pair<int, int>> record_reader::current_levels() {
 
 template <typename L>
 inline seastar::future<> typed_primitive_reader<L>::skip_field() {
-    return next().then([this] (std::optional<triplet> triplet) {
+    return next().then([] (std::optional<triplet> triplet) {
         if (!triplet) {
             throw parquet_exception("No more values buffered");
         }
@@ -459,12 +459,12 @@ inline seastar::future<std::optional<typename typed_primitive_reader<L>::triplet
 template <typename Consumer>
 inline seastar::future<> record_reader::read_one(Consumer& c) {
     c.start_record();
-    return seastar::do_for_each(_field_readers, [this, &c] (auto& child) {
-        return child.current_levels().then([this, &c, &child] (std::pair<int,int> level) {
+    return seastar::do_for_each(_field_readers, [&c] (auto& child) {
+        return child.current_levels().then([&c, &child] (std::pair<int,int> level) {
             auto def = level.first;
             c.start_column(child.name());
             return std::visit(overloaded {
-                [this, def, &c] (optional_reader& typed_child) {
+                [def, &c] (optional_reader& typed_child) {
                     if (def > 0) {
                         return typed_child.read_field(c);
                     } else {
@@ -472,7 +472,7 @@ inline seastar::future<> record_reader::read_one(Consumer& c) {
                         return typed_child.skip_field();
                     }
                 },
-                [this, &c] (auto& typed_child) {
+                [&c] (auto& typed_child) {
                     return typed_child.read_field(c);
                 }
             }, child._reader);

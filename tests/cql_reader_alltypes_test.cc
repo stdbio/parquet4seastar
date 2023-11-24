@@ -71,14 +71,30 @@ INSERT INTO "parquet"("row_number", "optional_uint32", "twice_repeated_uint16", 
 INSERT INTO "parquet"("row_number", "optional_uint32", "twice_repeated_uint16", "optional_undefined_null", "map_int32_int32", "map_key_value_bool_bool", "map_logical", "list_float", "list_double") VALUES(2, 1, [4, 5], null, {1: 1, 2: 2}, {false: false, true: true}, {1: 1, 2: 2}, [1.100000e+00, 2.200000e+00], [1.111110e+00, 2.222220e+00]);
 )###";
 
+
+
+    //     optional_uint32 twice_repeated_uint16 optional_undefined_null  \
+    // 0     4.294967e+09                [0, 1]                    None
+    // 1              NaN                [2, 3]                    None
+    // 2     1.000000e+00                [4, 5]                    None
+    //
+    //       map_int32_int32           map_key_value_bool_bool         map_logical  \
+    // 0  [(-1, -1), (0, 0)]  [(False, False), (False, False)]  [(-1, -1), (0, 0)]
+    // 1    [(0, 0), (1, 1)]    [(True, True), (False, False)]    [(0, 0), (1, 1)]
+    // 2    [(1, 1), (2, 2)]    [(False, False), (True, True)]    [(1, 1), (2, 2)]
+    //
+    //     list_float                             list_double
+    // 0  [-1.1, 0.0]               [-1.111109972000122, 0.0]
+    // 1   [0.0, 1.1]                [0.0, 1.111109972000122]
+    // 2   [1.1, 2.2]  [1.111109972000122, 2.222219944000244]
 SEASTAR_TEST_CASE(parquet_to_cql) {
     return seastar::async([] {
         // FIXME: work_dir in cmake not work;
-        std::string path = "/home/moyi/tmp/tmp.Up1Hmh0aGD/cmake-build-debug-remote-host/tests/test_data/alltypes/";
+        std::string path = "/home/moyi/tmp/tmp.Up1Hmh0aGD/tests/test_data/alltypes/";
         std::string suffix = ".uncompressed.plain.parquet";
         std::vector<std::pair<std::string, std::string>> test_cases = {
-            {"basic" + suffix, basic_cql},
-            // {"collections" + suffix, collections_cql}, // FIXME
+            {"basic" + suffix, basic_cql}, //
+            {"collections" + suffix, collections_cql},
             {"decimal" + suffix, decimal_cql},
             {"other" + suffix, byte_array_cql},
             {"time" + suffix, date_time_cql},
