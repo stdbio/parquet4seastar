@@ -61,15 +61,11 @@ public:
     template <typename T>
     uint32_t read_batch(uint32_t n, T out[]) {
         n = std::min(n, _num_values - _values_read);
-#if 0
         if (_bit_width == 0) {
             std::fill(out, out + n, 0);
-#endif
             _values_read += n;
             return n;
-#if 0
         }
-#endif
         return std::visit(overloaded {
                 [this, n, out] (BitReader& r) {
                     size_t n_read = r.GetBatch(_bit_width, out, n);

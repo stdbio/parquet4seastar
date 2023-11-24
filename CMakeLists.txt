@@ -20,7 +20,6 @@
 #
 
 cmake_minimum_required (VERSION 3.5)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
 
 project(parquet4seastar LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
@@ -32,13 +31,13 @@ find_package (Seastar REQUIRED)
 find_package (Snappy REQUIRED)
 find_package (ZLIB REQUIRED)
 
+find_package (ucontext REQUIRED)
+find_package (Valgrind REQUIRED)
+find_package (SystemTap-SDT)
 
 
 set(MIN_Thrift_VERSION 0.11.0)
 find_package (Thrift ${MIN_Thrift_VERSION} REQUIRED)
-
-
-
 
 
 add_library (parquet4seastar STATIC
@@ -144,7 +143,6 @@ enable_testing ()
 add_subdirectory (examples)
 add_subdirectory (tests)
 add_subdirectory (apps)
-
 
 # TODO(moyi): find thrift
 target_include_directories(${PROJECT_NAME} PUBLIC /usr/local/include/thrift)

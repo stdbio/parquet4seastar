@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 # This file is open source software, licensed to you under the terms
 # of the Apache License, Version 2.0 (the "License").  See the NOTICE file
 # distributed with this work for additional information regarding copyright
@@ -56,8 +56,13 @@ for CASE in ${!CASES[@]}; do
 	echo $CASE
 	FILENAME=pq/$CASE.parquet
 	FILETYPE="${CASES[$CASE]}"
-	for READER in $ARROW_READER $SEASTAR_READER; do
-		drop_cache
-		time ${READER} --filetype $FILETYPE --filename $FILENAME
-	done
+
+	drop_cache
+	echo arrow
+  time ${ARROW_READER} --filetype $FILETYPE --filename $FILENAME
+
+  drop_cache
+  echo seastar
+  time ${SEASTAR_READER} --filetype $FILETYPE --filename $FILENAME --kernel-page-cache 1
+
 done

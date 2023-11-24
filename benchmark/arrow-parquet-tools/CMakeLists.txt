@@ -19,7 +19,7 @@
 # Copyright (C) 2020 ScyllaDB
 #
 
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required(VERSION 3.5)
 
 project(arrow-parquet-tools LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
@@ -29,12 +29,16 @@ include(FindPkgConfig)
 
 find_package(Boost 1.40 COMPONENTS program_options REQUIRED)
 
+message(${ARROW_DIR}/cpp/src)
+
 include_directories(${ARROW_DIR}/cpp/src)
 include_directories(${ARROW_DIR}/cpp/build/src)
 
 add_executable(parquet-reader reader/main.cc reader/program_options.cc)
-target_link_libraries(parquet-reader ${ARROW_DIR}/cpp/build/release/libparquet.so  ${ARROW_DIR}/cpp/build/release/libarrow.so ${Boost_LIBRARIES})
+target_link_libraries(parquet-reader ${ARROW_DIR}/cpp/build/release/libparquet.so ${ARROW_DIR}/cpp/build/release/libarrow.so ${Boost_LIBRARIES} /usr/local/lib/libthrift-0.11.0.so)
 
 add_executable(parquet-writer writer/main.cc writer/program_options.cc)
-target_link_libraries(parquet-writer ${ARROW_DIR}/cpp/build/release/libparquet.so  ${ARROW_DIR}/cpp/build/release/libarrow.so ${Boost_LIBRARIES})
+target_link_libraries(parquet-writer ${ARROW_DIR}/cpp/build/release/libparquet.so ${ARROW_DIR}/cpp/build/release/libarrow.so ${Boost_LIBRARIES} /usr/local/lib/libthrift-0.11.0.so)
 set_source_files_properties(parquet-writer/parquet-writer.cc PROPERTIES COMPILE_FLAGS -Wno-error)
+
+#target_include_directories(${PROJECT_NAME} PUBLIC /usr/local/include/thrift)

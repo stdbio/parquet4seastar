@@ -24,7 +24,6 @@
 set -e
 
 MAIN="$PWD"
-
 git submodule update --depth 1
 
 cd "$MAIN/arrow/cpp"
@@ -42,5 +41,5 @@ make -j4
 cd "$MAIN/seastar-parquet-tools"
 mkdir -p build
 cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/home/moyi/seastar/build/release  -DCMAKE_MODULE_PATH=/home/moyi/seastar/cmake
 make -j4
