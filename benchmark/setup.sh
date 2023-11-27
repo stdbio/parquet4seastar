@@ -38,6 +38,7 @@ cd build
 cmake .. -D CMAKE_BUILD_TYPE=Release -D ARROW_DIR="$MAIN/arrow"
 make -j4
 
+# WARNING: ensure seastar4parquet's cmake build type is Release
 cd "$MAIN/seastar-parquet-tools"
 mkdir -p build
 cd build

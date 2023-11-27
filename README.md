@@ -32,9 +32,7 @@ Then, assuming that Seastar was built in DIR/build/dev, invoke
 ```
 mkdir build
 cd build
-cmake \
--DCMAKE_PREFIX_PATH=DIR/build/dev \
--DCMAKE_MODULE_PATH=DIR/cmake ..
+cmake -DCMAKE_PREFIX_PATH=/home/moyi/seastar/build/release  -DCMAKE_MODULE_PATH=/home/moyi/seastar/cmake ..
 make
 ```
 

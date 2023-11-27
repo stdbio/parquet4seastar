@@ -7,3 +7,6 @@
 [submodule "benchmark/arrow"]
 	path = benchmark/arrow
 	url = https://github.com/apache/arrow
+[submodule "seastar"]
+	path = seastar
+	url = https://github.com/stdbio/seastar.git
