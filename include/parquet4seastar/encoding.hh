@@ -225,9 +225,10 @@ public:
                     static_cast<int>(_bit_width)};
         }
     }
-    void put_batch(const uint64_t data[], size_t size) {
+    template <typename T>
+    void put_batch(const T data[], size_t size) {
         for (size_t i = 0; i < size; ++i) {
-            put(data[i]);
+            put(static_cast<T>(data[i]));
         }
     }
     void clear() {
