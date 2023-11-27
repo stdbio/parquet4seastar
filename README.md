@@ -25,15 +25,15 @@ The interface of the library is subject to change.
 
 The library follows standard CMake practices.
 
-First, build Seastar.
-Then, install the dependencies: GZIP, Snappy and Thrift >= 0.11.
-Then, assuming that Seastar was built in DIR/build/dev, invoke
+Install the dependencies: GZIP, Snappy and Thrift >= 0.11.
 
 ```
+git submodule update --init --recursive
+
 mkdir build
 cd build
-cmake -DCMAKE_PREFIX_PATH=/home/moyi/seastar/build/release  -DCMAKE_MODULE_PATH=/home/moyi/seastar/cmake ..
-make
+cmake .. DCMAKE_BUILD_TYPE=Release 
+make -j 30
 ```
 
 `libparquet4seastar.a`, tests and apps will be then be built in `build`.
@@ -47,6 +47,7 @@ Support for other compression libraries used in Parquet files
 can be added by merging #2.
 
 ```run test
+cd tests/
 ./byte_stream_split_test          
 ./compression_test                
 ./cql_reader_test                
