@@ -19,20 +19,21 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-#include <seastar/testing/test_case.hh>
-#include <seastar/core/thread.hh>
-#include <seastar/core/seastar.hh>
+#include <unistd.h>
+
 #include <parquet4seastar/column_chunk_reader.hh>
 #include <parquet4seastar/column_chunk_writer.hh>
-#include <unistd.h>
+#include <seastar/core/seastar.hh>
+#include <seastar/core/thread.hh>
+#include <seastar/testing/test_case.hh>
 
 namespace parquet4seastar {
 
-constexpr bytes_view operator ""_bv(const char* str, size_t len) noexcept {
+constexpr bytes_view operator""_bv(const char* str, size_t len) noexcept {
     return {static_cast<const uint8_t*>(static_cast<const void*>(str)), len};
 }
 
-seastar::temporary_buffer<uint8_t> operator ""_tb(const char* str, size_t len) noexcept {
+seastar::temporary_buffer<uint8_t> operator""_tb(const char* str, size_t len) noexcept {
     return {static_cast<const uint8_t*>(static_cast<const void*>(str)), len};
 }
 
@@ -40,17 +41,16 @@ constexpr std::string_view test_file_name = "/tmp/parquet4seastar_column_chunk_w
 
 SEASTAR_TEST_CASE(column_roundtrip) {
     return seastar::async([] {
-        seastar::file output_file = seastar::open_file_dma(
-                test_file_name.data(), seastar::open_flags::wo | seastar::open_flags::truncate | seastar::open_flags::create).get0();
+        seastar::file output_file =
+          seastar::open_file_dma(test_file_name.data(),
+                                 seastar::open_flags::wo | seastar::open_flags::truncate | seastar::open_flags::create)
+            .get0();
 
         // Write
-        seastar::output_stream<char> output = seastar::make_file_output_stream(output_file).get0(); // FIXME
+        seastar::output_stream<char> output = seastar::make_file_output_stream(output_file).get0();  // FIXME
         constexpr format::Type::type FLBA = format::Type::FIXED_LEN_BYTE_ARRAY;
-        column_chunk_writer<FLBA> w{
-            1,
-            1,
-            make_value_encoder<FLBA>(format::Encoding::RLE_DICTIONARY),
-            compressor::make(format::CompressionCodec::SNAPPY)};
+        column_chunk_writer<FLBA> w{1, 1, make_value_encoder<FLBA>(format::Encoding::RLE_DICTIONARY),
+                                    compressor::make(format::CompressionCodec::SNAPPY)};
         w.put(1, 1, "a"_bv);
         w.put(0, 1, "b"_bv);
         w.put(1, 1, "c"_bv);
@@ -68,11 +68,8 @@ SEASTAR_TEST_CASE(column_roundtrip) {
         seastar::file input_file = seastar::open_file_dma(test_file_name.data(), seastar::open_flags::ro).get0();
 
         column_chunk_reader<format::Type::FIXED_LEN_BYTE_ARRAY> r{
-            page_reader{seastar::make_file_input_stream(std::move(input_file))},
-            format::CompressionCodec::SNAPPY,
-            1,
-            1,
-            std::optional<uint32_t>(1)};
+          page_reader{seastar::make_file_input_stream(std::move(input_file))}, format::CompressionCodec::SNAPPY, 1, 1,
+          std::optional<uint32_t>(1)};
 
         constexpr size_t n_levels = 6;
         constexpr size_t n_values = 4;
@@ -108,4 +105,4 @@ SEASTAR_TEST_CASE(column_roundtrip) {
     });
 }
 
-} // namespace parquet4seastar
+}  // namespace parquet4seastar
