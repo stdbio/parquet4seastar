@@ -19,131 +19,108 @@
 # Copyright (C) 2020 ScyllaDB
 #
 
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required(VERSION 3.5)
 
 project(parquet4seastar LANGUAGES CXX)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-list (APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-find_package (Seastar REQUIRED)
-find_package (Snappy REQUIRED)
-find_package (ZLIB REQUIRED)
-
-find_package (ucontext REQUIRED)
-find_package (Valgrind REQUIRED)
-find_package (SystemTap-SDT)
-
+find_package(Snappy REQUIRED)
+find_package(ZLIB REQUIRED)
 
 set(MIN_Thrift_VERSION 0.11.0)
-find_package (Thrift ${MIN_Thrift_VERSION} REQUIRED)
+find_package(Thrift ${MIN_Thrift_VERSION} REQUIRED)
 
-
-add_library (parquet4seastar STATIC
-    include/parquet4seastar/bit_stream_utils.hh
-    include/parquet4seastar/bpacking.hh
-    include/parquet4seastar/bytes.hh
-    include/parquet4seastar/column_chunk_reader.hh
-    include/parquet4seastar/column_chunk_writer.hh
-    include/parquet4seastar/compression.hh
-    include/parquet4seastar/cql_reader.hh
-    include/parquet4seastar/exception.hh
-    include/parquet4seastar/encoding.hh
-    include/parquet4seastar/file_reader.hh
-    include/parquet4seastar/file_writer.hh
-    include/parquet4seastar/logical_type.hh
-    include/parquet4seastar/overloaded.hh
-    include/parquet4seastar/parquet_types.h
-    include/parquet4seastar/reader_schema.hh
-    include/parquet4seastar/record_reader.hh
-    include/parquet4seastar/rle_encoding.hh
-    include/parquet4seastar/thrift_serdes.hh
-    include/parquet4seastar/writer_schema.hh
-    include/parquet4seastar/y_combinator.hh
-    src/column_chunk_reader.cc
-    src/compression.cc
-    src/cql_reader.cc
-    src/encoding.cc
-    src/file_reader.cc
-    src/logical_type.cc
-    src/parquet_types.cpp
-    src/record_reader.cc
-    src/reader_schema.cc
-    src/thrift_serdes.cc
-    src/writer_schema.cc
+add_library(parquet4seastar STATIC
+        include/parquet4seastar/bit_stream_utils.hh
+        include/parquet4seastar/bpacking.hh
+        include/parquet4seastar/bytes.hh
+        include/parquet4seastar/column_chunk_reader.hh
+        include/parquet4seastar/column_chunk_writer.hh
+        include/parquet4seastar/compression.hh
+        include/parquet4seastar/cql_reader.hh
+        include/parquet4seastar/exception.hh
+        include/parquet4seastar/encoding.hh
+        include/parquet4seastar/file_reader.hh
+        include/parquet4seastar/file_writer.hh
+        include/parquet4seastar/logical_type.hh
+        include/parquet4seastar/overloaded.hh
+        include/parquet4seastar/parquet_types.h
+        include/parquet4seastar/reader_schema.hh
+        include/parquet4seastar/record_reader.hh
+        include/parquet4seastar/rle_encoding.hh
+        include/parquet4seastar/thrift_serdes.hh
+        include/parquet4seastar/writer_schema.hh
+        include/parquet4seastar/y_combinator.hh
+        src/column_chunk_reader.cc
+        src/compression.cc
+        src/cql_reader.cc
+        src/encoding.cc
+        src/file_reader.cc
+        src/logical_type.cc
+        src/parquet_types.cpp
+        src/record_reader.cc
+        src/reader_schema.cc
+        src/thrift_serdes.cc
+        src/writer_schema.cc
 )
 
 target_compile_options(parquet4seastar PRIVATE
-    -Wall
-    -Wextra
-    -Wno-unused-parameter
-    -Wno-missing-field-initializers
-    -fdiagnostics-color=always
+        -Wall
+        -Wextra
+        -Wno-unused-parameter
+        -Wno-missing-field-initializers
+        -fdiagnostics-color=always
 )
 
 target_link_libraries(parquet4seastar
-    Seastar::seastar
-    Thrift::thrift
-    ZLIB::ZLIB
-    Snappy::snappy
+        Thrift::thrift
+        ZLIB::ZLIB
+        Snappy::snappy
 )
 
-target_include_directories (parquet4seastar
-  PUBLIC
-    $<INSTALL_INTERFACE:include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+target_include_directories(parquet4seastar
+        PUBLIC
+        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 include(GNUInstallDirs)
 set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/parquet4seastar)
 
-install(TARGETS parquet4seastar
-    EXPORT parquet4seastar-targets
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-install(EXPORT parquet4seastar-targets
-    FILE
-        parquet4seastarTargets.cmake
-    NAMESPACE
-        parquet4seastar::
-    DESTINATION
-        ${INSTALL_CONFIGDIR}
-)
-
 include(CMakePackageConfigHelpers)
 configure_package_config_file(${CMAKE_CURRENT_LIST_DIR}/cmake/parquet4seastarConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/parquet4seastarConfig.cmake
-    INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
-)
-
-install(FILES
-    ${CMAKE_CURRENT_LIST_DIR}/cmake/FindThrift.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/parquet4seastarConfig.cmake
-    DESTINATION ${INSTALL_CONFIGDIR}
+        ${CMAKE_CURRENT_BINARY_DIR}/parquet4seastarConfig.cmake
+        INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
 )
 
 configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindThrift.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/FindThrift.cmake
-    COPYONLY)
-
-export(EXPORT parquet4seastar-targets
-    FILE ${CMAKE_CURRENT_BINARY_DIR}/parquet4seastarTargets.cmake
-    NAMESPACE parquet4seastar::)
+        ${CMAKE_CURRENT_BINARY_DIR}/FindThrift.cmake
+        COPYONLY)
 
 export(PACKAGE parquet4seastar)
 
-enable_testing ()
-add_subdirectory (examples)
-add_subdirectory (tests)
-add_subdirectory (apps)
+enable_testing()
 
-# TODO(moyi): find thrift
-target_include_directories(${PROJECT_NAME} PUBLIC /usr/local/include/thrift)
-target_link_directories(${PROJECT_NAME} PUBLIC /usr/local/lib)
+
+set(Seastar_TESTING ON) # build seastar_perf_testing
+
+
+if ("${SEASTAR_PATH}" STREQUAL "")
+    message(FATAL_ERROR "please add  -DSEASTAR_PATH={PATH_TO_SEASTAR}")
+endif ()
+
+if (NOT TARGET seastar)
+    message(add_seastar)
+    add_subdirectory(${SEASTAR_PATH} seastar)
+endif ()
+add_compile_definitions(SEASTAR_SCHEDULING_GROUPS_COUNT=${Seastar_SCHEDULING_GROUPS_COUNT})
+include_directories(SYSTEM ${SEASTAR_PATH}/include)
+
+add_subdirectory(tests)
+target_include_directories(${PROJECT_NAME} PRIVATE ${THRIFT_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME} ${THRIFT_STATIC_LIB} seastar)
