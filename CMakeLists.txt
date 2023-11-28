@@ -115,17 +115,13 @@ if ("${SEASTAR_PATH}" STREQUAL "")
     add_subdirectory(seastar)
     include_directories(SYSTEM ${CMAKE_CURRENT_LIST_DIR}/seastar/include)
 else ()
-    if(NOT TARGET seastar)
+    if (NOT TARGET seastar)
         message(add_seastar)
         add_subdirectory(${SEASTAR_PATH} seastar)
     endif ()
     include_directories(SYSTEM ${SEASTAR_PATH}/include)
 endif ()
 
-
 add_subdirectory(tests)
-# TODO(moyi): find thrift
-target_include_directories(${PROJECT_NAME} PUBLIC /usr/local/include/thrift)
-target_link_directories(${PROJECT_NAME} PUBLIC /usr/local/lib)
-
-target_link_libraries(${PROJECT_NAME} seastar)
+target_include_directories(${PROJECT_NAME} PRIVATE ${THRIFT_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME} ${THRIFT_STATIC_LIB} seastar)

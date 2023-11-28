@@ -103,4 +103,6 @@ if(Thrift_FOUND OR THRIFT_FOUND)
   set_target_properties(Thrift::thrift
                         PROPERTIES IMPORTED_LOCATION "${THRIFT_STATIC_LIB}"
                                    INTERFACE_INCLUDE_DIRECTORIES "${THRIFT_INCLUDE_DIR}")
+else()
+  message(FATAL_ERROR "can't find thrift")
 endif()
