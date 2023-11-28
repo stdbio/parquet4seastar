@@ -25,28 +25,19 @@ The interface of the library is subject to change.
 
 The library follows standard CMake practices.
 
-Install the dependencies: GZIP, Snappy and Thrift >= 0.11.
-
+Install the dependencies: GZIP, Snappy and Thrift >= 0.11. 
 ```
-git submodule update --init --recursive
+pushd /tmp
+git clone https://github.com/scylladb/seastar.git
+popd
 
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release 
-make -j 30
-```
-
-or use a specific version seastar 
-
-```
 mkdir build
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release -DSEASTAR_PATH=/tmp/seastar 
 make -j 30
 ```
 
-
-`libparquet4seastar.a`, tests and apps will be then be built in `build`.
+tests and apps will be then be built in `build`.
 
 The library can then be optionally installed with `make install` or consumed
 directly from the build directory. Use of CMake for consuming the library

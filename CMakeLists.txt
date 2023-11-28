@@ -111,16 +111,14 @@ set(Seastar_TESTING ON) # build seastar_perf_testing
 add_compile_definitions(SEASTAR_SCHEDULING_GROUPS_COUNT=${Seastar_SCHEDULING_GROUPS_COUNT})
 
 if ("${SEASTAR_PATH}" STREQUAL "")
-    #  use seastar in submodule
-    add_subdirectory(seastar)
-    include_directories(SYSTEM ${CMAKE_CURRENT_LIST_DIR}/seastar/include)
-else ()
-    if (NOT TARGET seastar)
-        message(add_seastar)
-        add_subdirectory(${SEASTAR_PATH} seastar)
-    endif ()
-    include_directories(SYSTEM ${SEASTAR_PATH}/include)
+    message(FATAL_ERROR "please add  -DSEASTAR_PATH={PATH_TO_SEASTAR}")
 endif ()
+
+if (NOT TARGET seastar)
+    message(add_seastar)
+    add_subdirectory(${SEASTAR_PATH} seastar)
+endif ()
+include_directories(SYSTEM ${SEASTAR_PATH}/include)
 
 add_subdirectory(tests)
 target_include_directories(${PROJECT_NAME} PRIVATE ${THRIFT_INCLUDE_DIR})
