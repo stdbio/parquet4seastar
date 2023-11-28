@@ -108,7 +108,7 @@ enable_testing()
 
 
 set(Seastar_TESTING ON) # build seastar_perf_testing
-add_compile_definitions(SEASTAR_SCHEDULING_GROUPS_COUNT=${Seastar_SCHEDULING_GROUPS_COUNT})
+
 
 if ("${SEASTAR_PATH}" STREQUAL "")
     message(FATAL_ERROR "please add  -DSEASTAR_PATH={PATH_TO_SEASTAR}")
@@ -118,6 +118,7 @@ if (NOT TARGET seastar)
     message(add_seastar)
     add_subdirectory(${SEASTAR_PATH} seastar)
 endif ()
+add_compile_definitions(SEASTAR_SCHEDULING_GROUPS_COUNT=${Seastar_SCHEDULING_GROUPS_COUNT})
 include_directories(SYSTEM ${SEASTAR_PATH}/include)
 
 add_subdirectory(tests)
