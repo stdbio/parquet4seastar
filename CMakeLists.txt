@@ -106,13 +106,24 @@ export(PACKAGE parquet4seastar)
 
 enable_testing()
 
+
 set(Seastar_TESTING ON) # build seastar_perf_testing
-add_subdirectory(seastar)
-include_directories(SYSTEM ${CMAKE_CURRENT_LIST_DIR}/seastar/include)
 add_compile_definitions(SEASTAR_SCHEDULING_GROUPS_COUNT=${Seastar_SCHEDULING_GROUPS_COUNT})
 
-add_subdirectory(tests)
+if ("${SEASTAR_PATH}" STREQUAL "")
+    #  use seastar in submodule
+    add_subdirectory(seastar)
+    include_directories(SYSTEM ${CMAKE_CURRENT_LIST_DIR}/seastar/include)
+else ()
+    if(NOT TARGET seastar)
+        message(add_seastar)
+        add_subdirectory(${SEASTAR_PATH} seastar)
+    endif ()
+    include_directories(SYSTEM ${SEASTAR_PATH}/include)
+endif ()
 
+
+add_subdirectory(tests)
 # TODO(moyi): find thrift
 target_include_directories(${PROJECT_NAME} PUBLIC /usr/local/include/thrift)
 target_link_directories(${PROJECT_NAME} PUBLIC /usr/local/lib)

@@ -32,9 +32,19 @@ git submodule update --init --recursive
 
 mkdir build
 cd build
-cmake .. DCMAKE_BUILD_TYPE=Release 
+cmake .. -DCMAKE_BUILD_TYPE=Release 
 make -j 30
 ```
+
+or use a specific version seastar 
+
+```
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release -DSEASTAR_PATH=/tmp/seastar 
+make -j 30
+```
+
 
 `libparquet4seastar.a`, tests and apps will be then be built in `build`.
 
