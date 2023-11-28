@@ -107,11 +107,12 @@ export(PACKAGE parquet4seastar)
 enable_testing()
 
 
-set(Seastar_TESTING ON) # build seastar_perf_testing
-
+if ("${Seastar_TESTING}" STREQUAL "")
+    set(Seastar_TESTING ON) # build seastar_perf_testing
+endif()
 
 if ("${SEASTAR_PATH}" STREQUAL "")
-    message(FATAL_ERROR "please add  -DSEASTAR_PATH={PATH_TO_SEASTAR}")
+    message(FATAL_ERROR "please add -DSEASTAR_PATH={PATH_TO_SEASTAR}")
 endif ()
 
 if (NOT TARGET seastar)
