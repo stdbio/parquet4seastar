@@ -33,7 +33,7 @@ popd
 
 mkdir build
 cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DSEASTAR_PATH=/tmp/seastar 
+cmake .. -DCMAKE_BUILD_TYPE=Release -DSEASTAR_PATH=/tmp/seastar  -DENABLE_PARQUET4SEASTAR_TEST=ON
 make -j 30
 ```
 

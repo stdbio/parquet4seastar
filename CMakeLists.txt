@@ -104,12 +104,9 @@ configure_file(${CMAKE_CURRENT_LIST_DIR}/cmake/FindThrift.cmake
 
 export(PACKAGE parquet4seastar)
 
-enable_testing()
-
-
 if ("${Seastar_TESTING}" STREQUAL "")
     set(Seastar_TESTING ON) # build seastar_perf_testing
-endif()
+endif ()
 
 if ("${SEASTAR_PATH}" STREQUAL "")
     message(FATAL_ERROR "please add -DSEASTAR_PATH={PATH_TO_SEASTAR}")
@@ -122,6 +119,18 @@ endif ()
 add_compile_definitions(SEASTAR_SCHEDULING_GROUPS_COUNT=${Seastar_SCHEDULING_GROUPS_COUNT})
 include_directories(SYSTEM ${SEASTAR_PATH}/include)
 
-add_subdirectory(tests)
 target_include_directories(${PROJECT_NAME} PRIVATE ${THRIFT_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME} ${THRIFT_STATIC_LIB} seastar)
+
+OPTION(ENABLE_PARQUET4SEASTAR_TEST
+        "enable parquet4seastar test"
+        OFF
+)
+
+message("parquet4seastar test: " ${ENABLE_PARQUET4SEASTAR_TEST})
+if (ENABLE_PARQUET4SEASTAR_TEST)
+    message("enable parquet4seastar test!")
+    enable_testing()
+    add_subdirectory(tests)
+endif ()
+
