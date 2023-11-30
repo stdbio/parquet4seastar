@@ -14,19 +14,10 @@ env:
 
 jobs:
   build:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ubuntu-latest
+    runs-on: stdbio/fedora:39-1
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Install Thrift
-        run: apt-get install -y thrift-dev
-
-      - name: Install Snappy
-        run: apt-get install -y snappy-devel
 
       - name: Get Seastar
         run: git clone https://github.com/scylladb/seastar.git
