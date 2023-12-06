@@ -60,7 +60,7 @@ cd tests/
 ./column_chunk_writer_test       
 ./cql_reader_alltypes_test       
 ./delta_byte_array_test          
-./dictionary_encoder_test        
+./dictionary_encoder_test      
 ```
 
 ```testcase
