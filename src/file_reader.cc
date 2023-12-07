@@ -67,7 +67,7 @@ seastar::future<file_reader> file_reader::open(std::string path) {
       .then([path](seastar::file file) {
           return read_file_metadata(file).then(
             [path = std::move(path), file](std::unique_ptr<format::FileMetaData> metadata) {
-                return file_reader(path,file, std::move(metadata));
+                return file_reader(path, file, std::move(metadata));
             });
       })
       .handle_exception([path = std::move(path)](std::exception_ptr eptr) {
@@ -131,8 +131,7 @@ seastar::future<column_chunk_reader<T>> file_reader::open_column_chunk_reader_in
     std::unique_ptr<format::ColumnMetaData> column_metadata;
     if (column_chunk.__isset.meta_data) {
         column_metadata = std::make_unique<format::ColumnMetaData>(column_chunk.meta_data);
-    }
-    else {
+    } else {
         column_metadata =
           co_await read_chunk_metadata(seastar::make_file_input_stream(f, column_chunk.file_offset, {8192, 16}));
     }

@@ -19,16 +19,14 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-#include <parquet4seastar/rle_encoding.hh>
-
-#include <seastar/testing/test_case.hh>
-
+#include <array>
 #include <cstdint>
 #include <cstring>
+#include <parquet4seastar/rle_encoding.hh>
 #include <random>
-#include <vector>
-#include <array>
 #include <seastar/core/thread.hh>
+#include <seastar/testing/test_case.hh>
+#include <vector>
 
 using parquet4seastar::BitReader;
 using parquet4seastar::RleDecoder;
@@ -36,9 +34,9 @@ using parquet4seastar::RleDecoder;
 SEASTAR_TEST_CASE(BitReader_happy) {
     constexpr int bit_width = 3;
     std::array<uint8_t, 6> packed = {
-        0b10001000, 0b01000110, // {0, 1, 2, 3, 4} packed with bit width 3
-        0b10000000, 0b00000001, // 128 encoded as LEB128
-        0b11111111, 0b00000001, // -128 encoded as zigzag
+      0b10001000, 0b01000110,  // {0, 1, 2, 3, 4} packed with bit width 3
+      0b10000000, 0b00000001,  // 128 encoded as LEB128
+      0b11111111, 0b00000001,  // -128 encoded as zigzag
     };
 
     std::array<int, 2> unpacked_1;
@@ -73,12 +71,12 @@ SEASTAR_TEST_CASE(BitReader_happy) {
     values_read = reader.GetBatch(bit_width, unpacked_2.data(), 999999);
     BOOST_CHECK_EQUAL(values_read, 0);
 
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(BitReader_ULEB128_corrupted) {
     std::array<uint8_t, 1> packed = {
-        0b10000000,// Incomplete ULEB128
+      0b10000000,  // Incomplete ULEB128
     };
 
     uint32_t unpacked;
@@ -86,25 +84,24 @@ SEASTAR_TEST_CASE(BitReader_ULEB128_corrupted) {
     bool ok = reader.GetVlqInt(&unpacked);
     BOOST_CHECK(!ok);
 
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(BitReader_ULEB128_overflow) {
-    std::array<uint8_t, 7> packed = {
-        0b10000000, 0b10000000, 0b10000000, 0b10000000, 0b10000000, 0b10000000, 0b00000000
-    };
+    std::array<uint8_t, 7> packed = {0b10000000, 0b10000000, 0b10000000, 0b10000000,
+                                     0b10000000, 0b10000000, 0b00000000};
 
     uint32_t unpacked;
     BitReader reader(packed.data(), packed.size());
     bool ok = reader.GetVlqInt(&unpacked);
     BOOST_CHECK(!ok);
 
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(BitReader_zigzag_corrupted) {
     std::array<uint8_t, 1> packed = {
-        0b10000000, // Incomplete zigzag
+      0b10000000,  // Incomplete zigzag
     };
 
     int32_t unpacked;
@@ -112,20 +109,19 @@ SEASTAR_TEST_CASE(BitReader_zigzag_corrupted) {
     bool ok = reader.GetZigZagVlqInt(&unpacked);
     BOOST_CHECK(!ok);
 
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(BitReader_zigzag_overflow) {
-    std::array<uint8_t, 7> packed = {
-        0b10000000, 0b10000000, 0b10000000, 0b10000000, 0b10000000, 0b10000000, 0b00000000
-    };
+    std::array<uint8_t, 7> packed = {0b10000000, 0b10000000, 0b10000000, 0b10000000,
+                                     0b10000000, 0b10000000, 0b00000000};
 
     int32_t unpacked;
     BitReader reader(packed.data(), packed.size());
     bool ok = reader.GetZigZagVlqInt(&unpacked);
     BOOST_CHECK(!ok);
 
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 // Refer to doc/parquet/Encodings.md (section about RLE)
@@ -134,8 +130,8 @@ SEASTAR_TEST_CASE(BitReader_zigzag_overflow) {
 SEASTAR_TEST_CASE(RleDecoder_happy) {
     constexpr int bit_width = 3;
     std::array<uint8_t, 6> packed = {
-        0b00000011, 0b10001000, 0b11000110, 0b11111010, // bit-packed-run {0, 1, 2, 3, 4, 5, 6, 7}
-        0b00001000, 0b00000101 // rle-run {5, 5, 5, 5}
+      0b00000011, 0b10001000, 0b11000110, 0b11111010,  // bit-packed-run {0, 1, 2, 3, 4, 5, 6, 7}
+      0b00001000, 0b00000101                           // rle-run {5, 5, 5, 5}
     };
     std::array<int, 6> unpacked_1;
     const std::array<int, 6> expected_1 = {0, 1, 2, 3, 4, 5};
@@ -162,19 +158,19 @@ SEASTAR_TEST_CASE(RleDecoder_happy) {
     values_read = reader.GetBatch(unpacked_2.data(), 9999999);
     BOOST_CHECK_EQUAL(values_read, 0);
 
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(RleDecoder_bit_packed_ULEB128) {
     constexpr int bit_width = 16;
     std::array<uint8_t, 1026> packed = {
-        0b10000001, 0b00000001// bit-packed-run with 8 * 64 values
+      0b10000001, 0b00000001  // bit-packed-run with 8 * 64 values
     };
     std::array<int, 512> expected;
     std::array<int, 512> unpacked;
     for (size_t i = 0; i < expected.size(); ++i) {
         uint16_t value = i;
-        memcpy(&packed[2 + i*2], &value, 2);
+        memcpy(&packed[2 + i * 2], &value, 2);
         expected[i] = i;
     }
 
@@ -185,13 +181,13 @@ SEASTAR_TEST_CASE(RleDecoder_bit_packed_ULEB128) {
     BOOST_CHECK_EQUAL(values_read, expected.size());
     BOOST_CHECK_EQUAL_COLLECTIONS(unpacked.begin(), unpacked.end(), expected.begin(), expected.end());
 
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(RleDecoder_rle_ULEB128) {
     constexpr int bit_width = 8;
     std::array<uint8_t, 3> packed = {
-        0b10000000, 0b00000001, 0b00000101 // rle-run with 64 copies of 5
+      0b10000000, 0b00000001, 0b00000101  // rle-run with 64 copies of 5
     };
     std::array<int, 64> expected;
     std::array<int, 64> unpacked;
@@ -206,52 +202,52 @@ SEASTAR_TEST_CASE(RleDecoder_rle_ULEB128) {
     BOOST_CHECK_EQUAL(values_read, expected.size());
     BOOST_CHECK_EQUAL_COLLECTIONS(unpacked.begin(), unpacked.end(), expected.begin(), expected.end());
 
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(RleDecoder_bit_packed_too_short) {
     constexpr int bit_width = 3;
     std::array<uint8_t, 3> packed = {
-        0b00000011, 0b10001000, 0b11000110 // bit-packed-run {0, 1, 2, 3, 4, EOF
+      0b00000011, 0b10001000, 0b11000110  // bit-packed-run {0, 1, 2, 3, 4, EOF
     };
     std::array<int, 8> unpacked;
 
     RleDecoder reader(packed.data(), packed.size(), bit_width);
     int values_read = reader.GetBatch(unpacked.data(), unpacked.size());
     BOOST_CHECK_EQUAL(values_read, 0);
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(RleDecoder_rle_too_short) {
     constexpr int bit_width = 3;
     std::array<uint8_t, 1> packed = {
-        0b00001000 // rle-run without value
+      0b00001000  // rle-run without value
     };
     std::array<int, 4> unpacked;
 
     RleDecoder reader(packed.data(), packed.size(), bit_width);
     int values_read = reader.GetBatch(unpacked.data(), unpacked.size());
     BOOST_CHECK_EQUAL(values_read, 0);
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(RleDecoder_bit_packed_ULEB128_too_short) {
     constexpr int bit_width = 3;
     std::array<uint8_t, 1> packed = {
-        0b10000001 // bit-packed-run of incomplete ULEB128 length
+      0b10000001  // bit-packed-run of incomplete ULEB128 length
     };
     std::array<int, 512> unpacked;
 
     RleDecoder reader(packed.data(), packed.size(), bit_width);
     int values_read = reader.GetBatch(unpacked.data(), unpacked.size());
     BOOST_CHECK_EQUAL(values_read, 0);
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(RleDecoder_rle_ULEB128_too_short) {
     constexpr int bit_width = 3;
     std::array<uint8_t, 1> packed = {
-        0b10000000 // rle-run of incomplete ULEB128 length
+      0b10000000  // rle-run of incomplete ULEB128 length
     };
     std::array<int, 512> unpacked;
 
@@ -259,6 +255,5 @@ SEASTAR_TEST_CASE(RleDecoder_rle_ULEB128_too_short) {
     int values_read = reader.GetBatch(unpacked.data(), unpacked.size());
     BOOST_CHECK_EQUAL(values_read, 0);
 
-
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }

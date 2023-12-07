@@ -25,24 +25,22 @@
 namespace parquet4seastar {
 
 seastar::future<std::optional<page>> page_reader::next_page() {
-    *_latest_header = format::PageHeader{}; // Thrift does not clear the structure by itself before writing to it.
-    return read_thrift_from_stream(_source, *_latest_header).then([this] (bool read) {
+    *_latest_header = format::PageHeader{};  // Thrift does not clear the structure by itself before writing to it.
+    return read_thrift_from_stream(_source, *_latest_header).then([this](bool read) {
         if (!read) {
             return seastar::make_ready_future<std::optional<page>>();
         }
         if (_latest_header->compressed_page_size < 0) {
-            throw parquet_exception::corrupted_file(seastar::format(
-                    "Negative compressed_page_size in header"));
+            throw parquet_exception::corrupted_file(seastar::format("Negative compressed_page_size in header"));
             // throw parquet_exception::corrupted_file(seastar::format(
             //         "Negative compressed_page_size in header: {}", *_latest_header));
         }
         size_t compressed_size = static_cast<uint32_t>(_latest_header->compressed_page_size);
-        return _source.peek(compressed_size).then(
-        [this, compressed_size] (bytes_view page_contents) {
+        return _source.peek(compressed_size).then([this, compressed_size](bytes_view page_contents) {
             if (page_contents.size() < compressed_size) {
                 throw parquet_exception::corrupted_file(seastar::format(
-                        "Unexpected end of column chunk while reading compressed page contents (expected {}B, got {}B)",
-                        compressed_size, page_contents.size()));
+                  "Unexpected end of column chunk while reading compressed page contents (expected {}B, got {}B)",
+                  compressed_size, page_contents.size()));
             }
             return _source.advance(compressed_size).then([this, page_contents] {
                 return seastar::make_ready_future<std::optional<page>>(page{_latest_header.get(), page_contents});
@@ -51,7 +49,7 @@ seastar::future<std::optional<page>> page_reader::next_page() {
     });
 }
 
-template<format::Type::type T>
+template <format::Type::type T>
 bytes_view column_chunk_reader<T>::decompress(bytes_view compressed, size_t uncompressed_size) {
     if (_decompressor->type() == format::CompressionCodec::UNCOMPRESSED) {
         return compressed;
@@ -62,26 +60,23 @@ bytes_view column_chunk_reader<T>::decompress(bytes_view compressed, size_t unco
     }
 }
 
-template<format::Type::type T>
+template <format::Type::type T>
 void column_chunk_reader<T>::load_data_page(page p) {
     if (!p.header->__isset.data_page_header) {
         // throw parquet_exception::corrupted_file(seastar::format(
         //         "DataPageHeader not set for DATA_PAGE header: {}", *p.header));
-        throw parquet_exception::corrupted_file(seastar::format(
-                "DataPageHeader not set for DATA_PAGE header"));
+        throw parquet_exception::corrupted_file(seastar::format("DataPageHeader not set for DATA_PAGE header"));
     }
     const format::DataPageHeader& header = p.header->data_page_header;
     if (header.num_values < 0) {
         // throw parquet_exception::corrupted_file(seastar::format(
         //         "Negative num_values in header: {}", header));
-        throw parquet_exception::corrupted_file(seastar::format(
-                "Negative num_values in header"));
+        throw parquet_exception::corrupted_file(seastar::format("Negative num_values in header"));
     }
     if (p.header->uncompressed_page_size < 0) {
         // throw parquet_exception::corrupted_file(seastar::format(
         //         "Negative uncompressed_page_size in header: {}", *p.header));
-        throw parquet_exception::corrupted_file(seastar::format(
-                "Negative uncompressed_page_size in header"));
+        throw parquet_exception::corrupted_file(seastar::format("Negative uncompressed_page_size in header"));
     }
 
     bytes_view contents = decompress(p.contents, p.header->uncompressed_page_size);
@@ -94,33 +89,29 @@ void column_chunk_reader<T>::load_data_page(page p) {
     _val_decoder.reset(contents, header.encoding);
 }
 
-template<format::Type::type T>
+template <format::Type::type T>
 void column_chunk_reader<T>::load_data_page_v2(page p) {
     if (!p.header->__isset.data_page_header_v2) {
         // throw parquet_exception::corrupted_file(seastar::format(
         //         "DataPageHeaderV2 not set for DATA_PAGE_V2 header: {}", *p.header));
-        throw parquet_exception::corrupted_file(seastar::format(
-                "DataPageHeaderV2 not set for DATA_PAGE_V2 header"));
+        throw parquet_exception::corrupted_file(seastar::format("DataPageHeaderV2 not set for DATA_PAGE_V2 header"));
     }
     const format::DataPageHeaderV2& header = p.header->data_page_header_v2;
     if (header.num_values < 0) {
         // throw parquet_exception::corrupted_file(seastar::format(
         //         "Negative num_values in header: {}", header));
-        throw parquet_exception::corrupted_file(seastar::format(
-                "Negative num_values in header"));
+        throw parquet_exception::corrupted_file(seastar::format("Negative num_values in header"));
     }
     if (header.repetition_levels_byte_length < 0 || header.definition_levels_byte_length < 0) {
         // throw parquet_exception::corrupted_file(seastar::format(
         //         "Negative levels byte length in header: {}", header));
 
-        throw parquet_exception::corrupted_file(seastar::format(
-                "Negative num_values in header"));
+        throw parquet_exception::corrupted_file(seastar::format("Negative num_values in header"));
     }
     if (p.header->uncompressed_page_size < 0) {
         // throw parquet_exception::corrupted_file(seastar::format(
         //         "Negative uncompressed_page_size in header: {}", *p.header));
-        throw parquet_exception::corrupted_file(seastar::format(
-                "Negative num_values in header"));
+        throw parquet_exception::corrupted_file(seastar::format("Negative num_values in header"));
     }
     bytes_view contents = p.contents;
     _rep_decoder.reset_v2(contents.substr(0, header.repetition_levels_byte_length), header.num_values);
@@ -135,13 +126,13 @@ void column_chunk_reader<T>::load_data_page_v2(page p) {
     _val_decoder.reset(contents, header.encoding);
 }
 
-template<format::Type::type T>
+template <format::Type::type T>
 void column_chunk_reader<T>::load_dictionary_page(page p) {
     if (!p.header->__isset.dictionary_page_header) {
         // throw parquet_exception::corrupted_file(seastar::format(
         //         "DictionaryPageHeader not set for DICTIONARY_PAGE header: {}", *p.header));
-        throw parquet_exception::corrupted_file(seastar::format(
-                "DictionaryPageHeader not set for DICTIONARY_PAGE header"));
+        throw parquet_exception::corrupted_file(
+          seastar::format("DictionaryPageHeader not set for DICTIONARY_PAGE header"));
     }
     const format::DictionaryPageHeader& header = p.header->dictionary_page_header;
     if (header.num_values < 0) {
@@ -150,8 +141,7 @@ void column_chunk_reader<T>::load_dictionary_page(page p) {
     if (p.header->uncompressed_page_size < 0) {
         // throw parquet_exception::corrupted_file(
         //         seastar::format("Negative uncompressed_page_size in header: {}", *p.header));
-        throw parquet_exception::corrupted_file(
-                seastar::format("Negative uncompressed_page_size in header"));
+        throw parquet_exception::corrupted_file(seastar::format("Negative uncompressed_page_size in header"));
     }
     _dict = std::vector<output_type>(header.num_values);
     bytes_view contents = decompress(p.contents, p.header->uncompressed_page_size);
@@ -159,32 +149,32 @@ void column_chunk_reader<T>::load_dictionary_page(page p) {
     vd.reset(contents, format::Encoding::PLAIN);
     size_t n_read = vd.read_batch(_dict->size(), _dict->data());
     if (n_read < _dict->size()) {
-        throw parquet_exception::corrupted_file(seastar::format(
-                "Unexpected end of dictionary page (expected {} values, got {})", _dict->size(), n_read));
+        throw parquet_exception::corrupted_file(
+          seastar::format("Unexpected end of dictionary page (expected {} values, got {})", _dict->size(), n_read));
     }
     _val_decoder.reset_dict(_dict->data(), _dict->size());
 }
 
-template<format::Type::type T>
+template <format::Type::type T>
 seastar::future<> column_chunk_reader<T>::load_next_page() {
     ++_page_ordinal;
-    return _source.next_page().then([this] (std::optional<page> p) {
+    return _source.next_page().then([this](std::optional<page> p) {
         if (!p) {
             _eof = true;
         } else {
             switch (p->header->type) {
-            case format::PageType::DATA_PAGE:
-                load_data_page(*p);
-                _initialized = true;
-                return;
-            case format::PageType::DATA_PAGE_V2:
-                load_data_page_v2(*p);
-                _initialized = true;
-                return;
-            case format::PageType::DICTIONARY_PAGE:
-                load_dictionary_page(*p);
-                return;
-            default:; // Unknown page types are to be skipped
+                case format::PageType::DATA_PAGE:
+                    load_data_page(*p);
+                    _initialized = true;
+                    return;
+                case format::PageType::DATA_PAGE_V2:
+                    load_data_page_v2(*p);
+                    _initialized = true;
+                    return;
+                case format::PageType::DICTIONARY_PAGE:
+                    load_dictionary_page(*p);
+                    return;
+                default:;  // Unknown page types are to be skipped
             }
         }
     });
@@ -199,4 +189,4 @@ template class column_chunk_reader<format::Type::BOOLEAN>;
 template class column_chunk_reader<format::Type::BYTE_ARRAY>;
 template class column_chunk_reader<format::Type::FIXED_LEN_BYTE_ARRAY>;
 
-} // namespace parquet4seastar
+}  // namespace parquet4seastar

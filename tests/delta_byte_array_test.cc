@@ -19,14 +19,13 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-
+#include <array>
 #include <parquet4seastar/encoding.hh>
+#include <seastar/core/thread.hh>
 #include <seastar/testing/test_case.hh>
 #include <vector>
-#include <array>
-#include <seastar/core/thread.hh>
 
-constexpr parquet4seastar::bytes_view operator ""_bv(const char* str, size_t len) noexcept {
+constexpr parquet4seastar::bytes_view operator""_bv(const char* str, size_t len) noexcept {
     return {static_cast<const uint8_t*>(static_cast<const void*>(str)), len};
 }
 
@@ -36,31 +35,25 @@ SEASTAR_TEST_CASE(happy) {
 
     bytes suffixes;
     {
-        bytes block_size = {0x80, 0x01}; // 128
-        bytes miniblocks_in_block = {0x1}; // 1
-        bytes values_in_total = {0x4}; // 4
-        bytes first_value = {0x0a}; // 5
-        bytes header
-                = block_size
-                + miniblocks_in_block
-                + values_in_total
-                + first_value;
+        bytes block_size = {0x80, 0x01};    // 128
+        bytes miniblocks_in_block = {0x1};  // 1
+        bytes values_in_total = {0x4};      // 4
+        bytes first_value = {0x0a};         // 5
+        bytes header = block_size + miniblocks_in_block + values_in_total + first_value;
 
-        bytes min_delta = {0x0}; // 0
-        bytes miniblock_bitwidths = {0x1}; // 1
+        bytes min_delta = {0x0};            // 0
+        bytes miniblock_bitwidths = {0x1};  // 1
         bytes miniblocks = {
-            0b11111111, 0b11111111, 0b11111111, 0b11111111,
-            0b11111111, 0b11111111, 0b11111111, 0b11111111,
-            0b11111111, 0b11111111, 0b11111111, 0b11111111,
-            0b11111111, 0b11111111, 0b11111111, 0b11111111,
+          0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
+          0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
         };
         bytes block = min_delta + miniblock_bitwidths + miniblocks;
 
         bytes_view strings[] = {
-            "aaaaa"_bv,
-            "bbbbbb"_bv,
-            "ccccccc"_bv,
-            "dddddddd"_bv,
+          "aaaaa"_bv,
+          "bbbbbb"_bv,
+          "ccccccc"_bv,
+          "dddddddd"_bv,
         };
 
         bytes concatenated_strings;
@@ -74,23 +67,17 @@ SEASTAR_TEST_CASE(happy) {
 
     bytes lengths;
     {
-        bytes block_size = {0x80, 0x01}; // 128
-        bytes miniblocks_in_block = {0x1}; // 1
-        bytes values_in_total = {0x4}; // 4
-        bytes first_value = {0x0}; // 0
-        bytes header
-                = block_size
-                + miniblocks_in_block
-                + values_in_total
-                + first_value;
+        bytes block_size = {0x80, 0x01};    // 128
+        bytes miniblocks_in_block = {0x1};  // 1
+        bytes values_in_total = {0x4};      // 4
+        bytes first_value = {0x0};          // 0
+        bytes header = block_size + miniblocks_in_block + values_in_total + first_value;
 
-        bytes min_delta = {0x2}; // 0
-        bytes miniblock_bitwidths = {0x1}; // 1
+        bytes min_delta = {0x2};            // 0
+        bytes miniblock_bitwidths = {0x1};  // 1
         bytes miniblocks = {
-            0b11111111, 0b11111111, 0b11111111, 0b11111111,
-            0b11111111, 0b11111111, 0b11111111, 0b11111111,
-            0b11111111, 0b11111111, 0b11111111, 0b11111111,
-            0b11111111, 0b11111111, 0b11111111, 0b11111111,
+          0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
+          0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
         };
         bytes block = min_delta + miniblock_bitwidths + miniblocks;
 
@@ -107,23 +94,20 @@ SEASTAR_TEST_CASE(happy) {
     out.resize(n_read);
 
     bytes_view expected_bv[] = {
-        "aaaaa"_bv,
-        "aabbbbbb"_bv,
-        "aabbccccccc"_bv,
-        "aabbccdddddddd"_bv,
+      "aaaaa"_bv,
+      "aabbbbbb"_bv,
+      "aabbccccccc"_bv,
+      "aabbccdddddddd"_bv,
     };
     output_type expected[] = {
-        output_type(expected_bv[0].data(), expected_bv[0].size()),
-        output_type(expected_bv[1].data(), expected_bv[1].size()),
-        output_type(expected_bv[2].data(), expected_bv[2].size()),
-        output_type(expected_bv[3].data(), expected_bv[3].size()),
+      output_type(expected_bv[0].data(), expected_bv[0].size()),
+      output_type(expected_bv[1].data(), expected_bv[1].size()),
+      output_type(expected_bv[2].data(), expected_bv[2].size()),
+      output_type(expected_bv[3].data(), expected_bv[3].size()),
     };
 
     BOOST_CHECK_EQUAL(std::size(out), std::size(expected));
-    BOOST_CHECK(std::equal(
-            std::begin(out), std::end(out),
-            std::begin(expected), std::end(expected)));
+    BOOST_CHECK(std::equal(std::begin(out), std::end(out), std::begin(expected), std::end(expected)));
 
-
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }

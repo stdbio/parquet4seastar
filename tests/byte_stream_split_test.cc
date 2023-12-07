@@ -19,22 +19,18 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-
+#include <array>
 #include <parquet4seastar/encoding.hh>
+#include <seastar/core/thread.hh>
 #include <seastar/testing/test_case.hh>
 #include <vector>
-#include <array>
-#include <seastar/core/thread.hh>
 
 void test_byte_stream_split_float() {
     using namespace parquet4seastar;
     auto decoder = value_decoder<format::Type::FLOAT>({});
 
     bytes test_data = {
-        0xa1, 0xb1, 0xc1,
-        0xa2, 0xb2, 0xc2,
-        0xa3, 0xb3, 0xc3,
-        0xa4, 0xb4, 0xc4,
+      0xa1, 0xb1, 0xc1, 0xa2, 0xb2, 0xc2, 0xa3, 0xb3, 0xc3, 0xa4, 0xb4, 0xc4,
     };
 
     decoder.reset(test_data, format::Encoding::BYTE_STREAM_SPLIT);
@@ -45,18 +41,13 @@ void test_byte_stream_split_float() {
     out.resize(n_read);
 
     bytes expected_bytes = {
-        0xa1, 0xa2, 0xa3, 0xa4,
-        0xb1, 0xb2, 0xb3, 0xb4,
-        0xc1, 0xc2, 0xc3, 0xc4,
+      0xa1, 0xa2, 0xa3, 0xa4, 0xb1, 0xb2, 0xb3, 0xb4, 0xc1, 0xc2, 0xc3, 0xc4,
     };
 
-    bytes_view out_bytes(
-            reinterpret_cast<byte*>(out.data()),
-            out.size() * sizeof(output_type));
+    bytes_view out_bytes(reinterpret_cast<byte*>(out.data()), out.size() * sizeof(output_type));
 
-    BOOST_CHECK_EQUAL_COLLECTIONS(
-            std::begin(out_bytes), std::end(out_bytes),
-            std::begin(expected_bytes), std::end(expected_bytes));
+    BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(out_bytes), std::end(out_bytes), std::begin(expected_bytes),
+                                  std::end(expected_bytes));
 }
 
 void test_byte_stream_split_double() {
@@ -64,14 +55,8 @@ void test_byte_stream_split_double() {
     auto decoder = value_decoder<format::Type::DOUBLE>({});
 
     bytes test_data = {
-        0xa1, 0xb1, 0xc1,
-        0xa2, 0xb2, 0xc2,
-        0xa3, 0xb3, 0xc3,
-        0xa4, 0xb4, 0xc4,
-        0xa5, 0xb5, 0xc5,
-        0xa6, 0xb6, 0xc6,
-        0xa7, 0xb7, 0xc7,
-        0xa8, 0xb8, 0xc8,
+      0xa1, 0xb1, 0xc1, 0xa2, 0xb2, 0xc2, 0xa3, 0xb3, 0xc3, 0xa4, 0xb4, 0xc4,
+      0xa5, 0xb5, 0xc5, 0xa6, 0xb6, 0xc6, 0xa7, 0xb7, 0xc7, 0xa8, 0xb8, 0xc8,
     };
 
     decoder.reset(test_data, format::Encoding::BYTE_STREAM_SPLIT);
@@ -82,22 +67,18 @@ void test_byte_stream_split_double() {
     out.resize(n_read);
 
     bytes expected_bytes = {
-        0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8,
-        0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8,
-        0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8,
+      0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xb1, 0xb2, 0xb3, 0xb4,
+      0xb5, 0xb6, 0xb7, 0xb8, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8,
     };
 
-    bytes_view out_bytes(
-            reinterpret_cast<byte*>(out.data()),
-            out.size() * sizeof(output_type));
+    bytes_view out_bytes(reinterpret_cast<byte*>(out.data()), out.size() * sizeof(output_type));
 
-    BOOST_CHECK_EQUAL_COLLECTIONS(
-            std::begin(out_bytes), std::end(out_bytes),
-            std::begin(expected_bytes), std::end(expected_bytes));
+    BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(out_bytes), std::end(out_bytes), std::begin(expected_bytes),
+                                  std::end(expected_bytes));
 }
 
 SEASTAR_TEST_CASE(happy) {
     test_byte_stream_split_float();
     test_byte_stream_split_double();
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }

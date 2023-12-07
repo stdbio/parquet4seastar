@@ -32,7 +32,7 @@ seastar::future<> peekable_stream::read_exactly(size_t n) {
     if (n == 0) {
         return seastar::make_ready_future<>();
     }
-    return _source.read_up_to(n).then([this, n] (seastar::temporary_buffer<char> newbuf) {
+    return _source.read_up_to(n).then([this, n](seastar::temporary_buffer<char> newbuf) {
         if (newbuf.size() == 0) {
             return seastar::make_ready_future<>();
         } else {
@@ -80,8 +80,7 @@ seastar::future<bytes_view> peekable_stream::peek(size_t n) {
     if (n == 0) {
         return seastar::make_ready_future<bytes_view>();
     } else if (_buffer_end - _buffer_start >= n) {
-        return seastar::make_ready_future<bytes_view>(
-                bytes_view{_buffer.data() +_buffer_start, n});
+        return seastar::make_ready_future<bytes_view>(bytes_view{_buffer.data() + _buffer_start, n});
     } else {
         size_t bytes_needed = n - (_buffer_end - _buffer_start);
         ensure_space(bytes_needed);
@@ -105,4 +104,4 @@ seastar::future<> peekable_stream::advance(size_t n) {
     }
 }
 
-} // namespace parquet4seastar
+}  // namespace parquet4seastar

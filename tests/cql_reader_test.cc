@@ -19,13 +19,13 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-#include <seastar/testing/test_case.hh>
-#include <seastar/core/thread.hh>
+#include <map>
+#include <parquet4seastar/cql_reader.hh>
 #include <parquet4seastar/file_reader.hh>
 #include <parquet4seastar/reader_schema.hh>
-#include <parquet4seastar/cql_reader.hh>
 #include <seastar/core/print.hh>
-#include <map>
+#include <seastar/core/thread.hh>
+#include <seastar/testing/test_case.hh>
 #include <sstream>
 
 namespace parquet4seastar {
@@ -35,17 +35,17 @@ using namespace seastar;
 SEASTAR_TEST_CASE(parquet_to_cql) {
     return async([] {
         std::vector<std::pair<std::string, std::string>> test_cases = {
-        {"data/alltypes_plain.snappy.parquet", R"###(
+          {"data/alltypes_plain.snappy.parquet", R"###(
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "id" int, "bool_col" boolean, "tinyint_col" int, "smallint_col" int, "int_col" int, "bigint_col" bigint, "float_col" float, "double_col" double, "date_string_col" blob, "string_col" blob, "timestamp_col" varint);
 INSERT INTO "parquet"("row_number", "id", "bool_col", "tinyint_col", "smallint_col", "int_col", "bigint_col", "float_col", "double_col", "date_string_col", "string_col", "timestamp_col") VALUES(0, 6, true, 0, 0, 0, 0, 0.000000e+00, 0.000000e+00, 0x30342F30312F3039, 0x30, 2454923);
 INSERT INTO "parquet"("row_number", "id", "bool_col", "tinyint_col", "smallint_col", "int_col", "bigint_col", "float_col", "double_col", "date_string_col", "string_col", "timestamp_col") VALUES(1, 7, false, 1, 1, 1, 10, 1.100000e+00, 1.010000e+01, 0x30342F30312F3039, 0x31, -2389630777127629293778274933);
 )###"},
-        {"data/alltypes_dictionary.parquet", R"###(
+          {"data/alltypes_dictionary.parquet", R"###(
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "id" int, "bool_col" boolean, "tinyint_col" int, "smallint_col" int, "int_col" int, "bigint_col" bigint, "float_col" float, "double_col" double, "date_string_col" blob, "string_col" blob, "timestamp_col" varint);
 INSERT INTO "parquet"("row_number", "id", "bool_col", "tinyint_col", "smallint_col", "int_col", "bigint_col", "float_col", "double_col", "date_string_col", "string_col", "timestamp_col") VALUES(0, 0, true, 0, 0, 0, 0, 0.000000e+00, 0.000000e+00, 0x30312F30312F3039, 0x30, 2454833);
 INSERT INTO "parquet"("row_number", "id", "bool_col", "tinyint_col", "smallint_col", "int_col", "bigint_col", "float_col", "double_col", "date_string_col", "string_col", "timestamp_col") VALUES(1, 1, false, 1, 1, 1, 10, 1.100000e+00, 1.010000e+01, 0x30312F30312F3039, 0x31, -2389630777127629293778275023);
 )###"},
-        {"data/binary.parquet", R"###(
+          {"data/binary.parquet", R"###(
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "foo" blob);
 INSERT INTO "parquet"("row_number", "foo") VALUES(0, 0x00);
 INSERT INTO "parquet"("row_number", "foo") VALUES(1, 0x01);
@@ -60,7 +60,7 @@ INSERT INTO "parquet"("row_number", "foo") VALUES(9, 0x09);
 INSERT INTO "parquet"("row_number", "foo") VALUES(10, 0x0A);
 INSERT INTO "parquet"("row_number", "foo") VALUES(11, 0x0B);
 )###"},
-        {"data/byte_array_decimal.parquet", R"###(
+          {"data/byte_array_decimal.parquet", R"###(
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "value" decimal);
 INSERT INTO "parquet"("row_number", "value") VALUES(0, 100e-2);
 INSERT INTO "parquet"("row_number", "value") VALUES(1, 200e-2);
@@ -87,7 +87,7 @@ INSERT INTO "parquet"("row_number", "value") VALUES(21, 2200e-2);
 INSERT INTO "parquet"("row_number", "value") VALUES(22, 2300e-2);
 INSERT INTO "parquet"("row_number", "value") VALUES(23, 2400e-2);
 )###"},
-        {"data/datapage_v2.snappy.parquet", R"###(
+          {"data/datapage_v2.snappy.parquet", R"###(
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "a" text, "b" int, "c" double, "d" boolean, "e" frozen<list<int>>);
 INSERT INTO "parquet"("row_number", "a", "b", "c", "d", "e") VALUES(0, 'abc', 1, 2.000000e+00, false, [1, 2, 3]);
 INSERT INTO "parquet"("row_number", "a", "b", "c", "d", "e") VALUES(1, 'abc', 2, 3.000000e+00, true, null);
@@ -95,7 +95,7 @@ INSERT INTO "parquet"("row_number", "a", "b", "c", "d", "e") VALUES(2, 'abc', 3,
 INSERT INTO "parquet"("row_number", "a", "b", "c", "d", "e") VALUES(3, null, 4, 5.000000e+00, true, [1, 2, 3]);
 INSERT INTO "parquet"("row_number", "a", "b", "c", "d", "e") VALUES(4, 'abc', 5, 2.000000e+00, false, [1, 2]);
 )###"},
-        {"data/int32_decimal.parquet", R"###(
+          {"data/int32_decimal.parquet", R"###(
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "value" decimal);
 INSERT INTO "parquet"("row_number", "value") VALUES(0, 100e-2);
 INSERT INTO "parquet"("row_number", "value") VALUES(1, 200e-2);
@@ -122,7 +122,7 @@ INSERT INTO "parquet"("row_number", "value") VALUES(21, 2200e-2);
 INSERT INTO "parquet"("row_number", "value") VALUES(22, 2300e-2);
 INSERT INTO "parquet"("row_number", "value") VALUES(23, 2400e-2);
 )###"},
-        {"data/int64_decimal.parquet", R"###(
+          {"data/int64_decimal.parquet", R"###(
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "value" decimal);
 INSERT INTO "parquet"("row_number", "value") VALUES(0, 100e-2);
 INSERT INTO "parquet"("row_number", "value") VALUES(1, 200e-2);
@@ -149,13 +149,13 @@ INSERT INTO "parquet"("row_number", "value") VALUES(21, 2200e-2);
 INSERT INTO "parquet"("row_number", "value") VALUES(22, 2300e-2);
 INSERT INTO "parquet"("row_number", "value") VALUES(23, 2400e-2);
 )###"},
-        {"data/nested_lists.snappy.parquet", R"###(
+          {"data/nested_lists.snappy.parquet", R"###(
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "a" frozen<list<frozen<list<frozen<list<text>>>>>>, "b" int);
 INSERT INTO "parquet"("row_number", "a", "b") VALUES(0, [[['a', 'b'], ['c']], [null, ['d']]], 1);
 INSERT INTO "parquet"("row_number", "a", "b") VALUES(1, [[['a', 'b'], ['c', 'd']], [null, ['e']]], 1);
 INSERT INTO "parquet"("row_number", "a", "b") VALUES(2, [[['a', 'b'], ['c', 'd'], ['e']], [null, ['f']]], 1);
 )###"},
-        {"data/nested_maps.snappy.parquet", R"###(
+          {"data/nested_maps.snappy.parquet", R"###(
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "a" frozen<map<text, frozen<map<int, boolean>>>>, "b" int, "c" double);
 INSERT INTO "parquet"("row_number", "a", "b", "c") VALUES(0, {'a': {1: true, 2: false}}, 1, 1.000000e+00);
 INSERT INTO "parquet"("row_number", "a", "b", "c") VALUES(1, {'b': {1: true}}, 1, 1.000000e+00);
@@ -164,7 +164,7 @@ INSERT INTO "parquet"("row_number", "a", "b", "c") VALUES(3, {'d': {}}, 1, 1.000
 INSERT INTO "parquet"("row_number", "a", "b", "c") VALUES(4, {'e': {1: true}}, 1, 1.000000e+00);
 INSERT INTO "parquet"("row_number", "a", "b", "c") VALUES(5, {'f': {3: true, 4: false, 5: true}}, 1, 1.000000e+00);
 )###"},
-        {"data/repeated_no_annotation.parquet", R"###(
+          {"data/repeated_no_annotation.parquet", R"###(
 CREATE TYPE "parquet_udt_0" ("number" bigint, "kind" text);
 CREATE TYPE "parquet_udt_1" ("phone" frozen<list<"parquet_udt_0">>);
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "id" int, "phoneNumbers" "parquet_udt_1");
@@ -175,7 +175,7 @@ INSERT INTO "parquet"("row_number", "id", "phoneNumbers") VALUES(3, 4, {"phone":
 INSERT INTO "parquet"("row_number", "id", "phoneNumbers") VALUES(4, 5, {"phone": [{"number": 1111111111, "kind": 'home'}]});
 INSERT INTO "parquet"("row_number", "id", "phoneNumbers") VALUES(5, 6, {"phone": [{"number": 1111111111, "kind": 'home'}, {"number": 2222222222, "kind": null}, {"number": 3333333333, "kind": 'mobile'}]});
 )###"},
-        {"data/nonnullable.impala.parquet", R"###(
+          {"data/nonnullable.impala.parquet", R"###(
 CREATE TYPE "parquet_udt_0" ("e" int, "f" text);
 CREATE TYPE "parquet_udt_1" ("D" frozen<list<frozen<list<"parquet_udt_0">>>>);
 CREATE TYPE "parquet_udt_2" ("i" frozen<list<double>>);
@@ -184,7 +184,7 @@ CREATE TYPE "parquet_udt_4" ("a" int, "B" frozen<list<int>>, "c" frozen<"parquet
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "ID" bigint, "Int_Array" frozen<list<int>>, "int_array_array" frozen<list<frozen<list<int>>>>, "Int_Map" frozen<map<text, int>>, "int_map_array" frozen<list<frozen<map<text, int>>>>, "nested_Struct" "parquet_udt_4");
 INSERT INTO "parquet"("row_number", "ID", "Int_Array", "int_array_array", "Int_Map", "int_map_array", "nested_Struct") VALUES(0, 8, [-1], [[-1, -2], []], {'k1': -1}, [{}, {'k1': 1}, {}, {}], {"a": -1, "B": [-1], "c": {"D": [[{"e": -1, "f": 'nonnullable'}]]}, "G": {}});
 )###"},
-        {"data/nullable.impala.parquet", R"###(
+          {"data/nullable.impala.parquet", R"###(
 CREATE TYPE "parquet_udt_0" ("E" int, "F" text);
 CREATE TYPE "parquet_udt_1" ("d" frozen<list<frozen<list<"parquet_udt_0">>>>);
 CREATE TYPE "parquet_udt_2" ("i" frozen<list<double>>);
@@ -199,7 +199,7 @@ INSERT INTO "parquet"("row_number", "id", "int_array", "int_array_Array", "int_m
 INSERT INTO "parquet"("row_number", "id", "int_array", "int_array_Array", "int_map", "int_Map_Array", "nested_struct") VALUES(5, 6, null, null, null, null, null);
 INSERT INTO "parquet"("row_number", "id", "int_array", "int_array_Array", "int_map", "int_Map_Array", "nested_struct") VALUES(6, 7, null, [null, [5, 6]], {'k1': null, 'k3': null}, null, {"A": 7, "b": [2, 3, null], "C": {"d": [[], [null], null]}, "g": null});
 )###"},
-        {"data/nulls.snappy.parquet", R"###(
+          {"data/nulls.snappy.parquet", R"###(
 CREATE TYPE "parquet_udt_0" ("b_c_int" int);
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "b_struct" "parquet_udt_0");
 INSERT INTO "parquet"("row_number", "b_struct") VALUES(0, {"b_c_int": null});
@@ -211,30 +211,31 @@ INSERT INTO "parquet"("row_number", "b_struct") VALUES(5, {"b_c_int": null});
 INSERT INTO "parquet"("row_number", "b_struct") VALUES(6, {"b_c_int": null});
 INSERT INTO "parquet"("row_number", "b_struct") VALUES(7, {"b_c_int": null});
 )###"},
-        {"data/single_nan.parquet", R"###(
+          {"data/single_nan.parquet", R"###(
 CREATE TABLE "parquet"("row_number" bigint PRIMARY KEY, "mycol" double);
 INSERT INTO "parquet"("row_number", "mycol") VALUES(0, null);
 )###"},
-        }; // test_cases
+        };  // test_cases
         std::string path = "/home/moyi/tmp/tmp.Up1Hmh0aGD/tests/test_data/parquet-testing/";
         for (const auto& [filename, output] : test_cases) {
             std::stringstream ss;
             ss << '\n';
-            future<file_reader> future_reader = file_reader::open(path+ filename);
-            file_reader reader = future_reader.handle_exception([] (auto eptr) {
-                std::string hint =
-                        "Make sure that the parquet-testing submodule is initialized"
-                        " and that the working directory of this test is set to it";
-                std::string error = seastar::format("{}.\n{}.\n",
-                        // eptr, // this should compile, but doesn't
-                        "Error",
-                        hint);
-                return make_exception_future<file_reader>(parquet_exception(error));
-            }).get0();
+            future<file_reader> future_reader = file_reader::open(path + filename);
+            file_reader reader = future_reader
+                                   .handle_exception([](auto eptr) {
+                                       std::string hint =
+                                         "Make sure that the parquet-testing submodule is initialized"
+                                         " and that the working directory of this test is set to it";
+                                       std::string error = seastar::format("{}.\n{}.\n",
+                                                                           // eptr, // this should compile, but doesn't
+                                                                           "Error", hint);
+                                       return make_exception_future<file_reader>(parquet_exception(error));
+                                   })
+                                   .get0();
             cql::parquet_to_cql(reader, "parquet", "row_number", ss).get();
             BOOST_CHECK_EQUAL(ss.str(), output);
         }
     });
 }
 
-} // namespace parquet4seastar
+}  // namespace parquet4seastar

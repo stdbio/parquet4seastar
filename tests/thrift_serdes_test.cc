@@ -19,14 +19,13 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
+#include <parquet4seastar/parquet_types.h>
 
 #include <parquet4seastar/thrift_serdes.hh>
-#include <parquet4seastar/parquet_types.h>
 #include <seastar/core/thread.hh>
 #include <seastar/testing/test_case.hh>
 
-SEASTAR_TEST_CASE(thrift_serdes)
-{
+SEASTAR_TEST_CASE(thrift_serdes) {
     using namespace parquet4seastar;
     thrift_serializer serializer;
 
@@ -41,6 +40,5 @@ SEASTAR_TEST_CASE(thrift_serdes)
 
     BOOST_CHECK(fmd2.schema[0].type == format::Type::DOUBLE);
 
-
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }

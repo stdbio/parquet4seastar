@@ -19,47 +19,36 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-
-#include <parquet4seastar/encoding.hh>
-#include <seastar/testing/test_case.hh>
-#include <vector>
 #include <array>
 #include <limits>
+#include <parquet4seastar/encoding.hh>
 #include <seastar/core/abort_on_ebadf.hh>
 #include <seastar/core/thread.hh>
+#include <seastar/testing/test_case.hh>
+#include <vector>
 
-SEASTAR_TEST_CASE(decoding)
-{
+SEASTAR_TEST_CASE(decoding) {
     using namespace parquet4seastar;
     auto decoder = value_decoder<format::Type::INT32>({});
 
-    bytes block_size = {0x80, 0x01}; // 128
-    bytes miniblocks_in_block = {0x4}; // 4
-    bytes values_in_total = {0x42}; // 66
-    bytes first_value = {0x10}; // 8
-    bytes header
-            = block_size
-            + miniblocks_in_block
-            + values_in_total
-            + first_value;
+    bytes block_size = {0x80, 0x01};    // 128
+    bytes miniblocks_in_block = {0x4};  // 4
+    bytes values_in_total = {0x42};     // 66
+    bytes first_value = {0x10};         // 8
+    bytes header = block_size + miniblocks_in_block + values_in_total + first_value;
 
-    bytes min_delta = {0x1}; // -1
-    bytes miniblock_bitwidths = {0x4, 0x3, 0x2, 0x1}; // 4, 3, 2, 1
+    bytes min_delta = {0x1};                           // -1
+    bytes miniblock_bitwidths = {0x4, 0x3, 0x2, 0x1};  // 4, 3, 2, 1
     bytes miniblocks = {
-        0b00010001, 0b00010001, 0b00010001, 0b00010001,
-        0b00000000, 0b00000000, 0b00000000, 0b00000000,
-        0b00000000, 0b00000000, 0b00000000, 0b00000000,
-        0b00011001, 0b00010001, 0b00010001, 0b00010001,
+      0b00010001, 0b00010001, 0b00010001, 0b00010001, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+      0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00011001, 0b00010001, 0b00010001, 0b00010001,
 
-        0b01001001, 0b10010010, 0b00100100, 0b01001001,
-        0b10010010, 0b00100100, 0b01001001, 0b10010010,
-        0b00100100, 0b01001001, 0b10010010, 0b00100100,
-        0b01001001, 0b10010010, 0b00100100, 0b01001001,
+      0b01001001, 0b10010010, 0b00100100, 0b01001001, 0b10010010, 0b00100100, 0b01001001, 0b10010010,
+      0b00100100, 0b01001001, 0b10010010, 0b00100100, 0b01001001, 0b10010010, 0b00100100, 0b01001001,
 
-        0b11111101, 0b11111111, 0b11111111, 0b11111111,
-        0b11111111, 0b11111111, 0b11111111, 0b11111111,
+      0b11111101, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11111111,
 
-        0b11111111, 0b11111111, 0b11111111, 0b11111111,
+      0b11111111, 0b11111111, 0b11111111, 0b11111111,
     };
     bytes block = min_delta + miniblock_bitwidths + miniblocks;
 
@@ -71,27 +60,18 @@ SEASTAR_TEST_CASE(decoding)
     out.resize(n_read);
 
     int32_t expected[] = {
-        8,
+      8,
 
-        8, 8, 8, 8, 8, 8, 8, 8,
-        7, 6, 5, 4, 3, 2, 1, 0,
-        -1, -2, -3, -4, -5, -6, -7, -8,
-        0, 0, 0, 0, 0, 0, 0, 0,
+      8, 8, 8, 8, 8, 8, 8, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6, -7, -8, 0, 0, 0, 0, 0, 0, 0, 0,
 
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0,  0,  0,  0,  0,  0,  0,  0, 0, 0, 0, 0, 0, 0, 0,
 
-        0,
+      0,
     };
 
-    BOOST_CHECK_EQUAL_COLLECTIONS(
-            std::begin(out), std::end(out),
-            std::begin(expected), std::end(expected));
+    BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(out), std::end(out), std::begin(expected), std::end(expected));
 
-
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(encoding32) {
@@ -124,12 +104,10 @@ SEASTAR_TEST_CASE(encoding32) {
         size_t n_read = decoder.read_batch(decoded.size(), decoded.data());
         decoded.resize(n_read);
 
-        BOOST_CHECK_EQUAL_COLLECTIONS(
-                std::begin(decoded), std::end(decoded),
-                std::begin(input), std::end(input));
+        BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(decoded), std::end(decoded), std::begin(input), std::end(input));
     }
 
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(encoding64) {
@@ -162,11 +140,9 @@ SEASTAR_TEST_CASE(encoding64) {
         size_t n_read = decoder.read_batch(decoded.size(), decoded.data());
         decoded.resize(n_read);
 
-        BOOST_CHECK_EQUAL_COLLECTIONS(
-                std::begin(decoded), std::end(decoded),
-                std::begin(input), std::end(input));
+        BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(decoded), std::end(decoded), std::begin(input), std::end(input));
     }
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(encoding64_empty) {
@@ -189,9 +165,7 @@ SEASTAR_TEST_CASE(encoding64_empty) {
         size_t n_read = decoder.read_batch(decoded.size(), decoded.data());
         decoded.resize(n_read);
 
-        BOOST_CHECK_EQUAL_COLLECTIONS(
-                std::begin(decoded), std::end(decoded),
-                std::begin(input), std::end(input));
+        BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(decoded), std::end(decoded), std::begin(input), std::end(input));
     }
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }

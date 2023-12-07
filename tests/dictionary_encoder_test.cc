@@ -19,15 +19,13 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-
+#include <array>
 #include <parquet4seastar/encoding.hh>
+#include <seastar/core/thread.hh>
 #include <seastar/testing/test_case.hh>
 #include <vector>
-#include <array>
-#include <seastar/core/thread.hh>
 
-SEASTAR_TEST_CASE(dict_encoder_trivial_happy)
-{
+SEASTAR_TEST_CASE(dict_encoder_trivial_happy) {
     using namespace parquet4seastar;
     auto encoder = make_value_encoder<format::Type::INT32>(format::Encoding::RLE_DICTIONARY);
     {
@@ -51,12 +49,10 @@ SEASTAR_TEST_CASE(dict_encoder_trivial_happy)
         BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(decoded), std::end(decoded), std::begin(expected), std::end(expected));
 
         auto dict = *encoder->view_dict();
-        bytes expected_dict = {
-            0x02, 0x00, 0x00, 0x00,
-            0x01, 0x00, 0x00, 0x00,
-            0x03, 0x00, 0x00, 0x00};
+        bytes expected_dict = {0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00};
         BOOST_CHECK_EQUAL(std::size(dict), std::size(expected_dict));
-        BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(dict), std::end(dict), std::begin(expected_dict), std::end(expected_dict));
+        BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(dict), std::end(dict), std::begin(expected_dict),
+                                      std::end(expected_dict));
     }
     {
         uint8_t out[10000];
@@ -77,20 +73,17 @@ SEASTAR_TEST_CASE(dict_encoder_trivial_happy)
         BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(decoded), std::end(decoded), std::begin(expected), std::end(expected));
 
         auto dict = *encoder->view_dict();
-        bytes expected_dict = {
-            0x02, 0x00, 0x00, 0x00,
-            0x01, 0x00, 0x00, 0x00,
-            0x03, 0x00, 0x00, 0x00,
-            0x04, 0x00, 0x00, 0x00,
-            0x05, 0x00, 0x00, 0x00};
+        bytes expected_dict = {0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x03, 0x00,
+                               0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00};
         BOOST_CHECK_EQUAL(std::size(dict), std::size(expected_dict));
-        BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(dict), std::end(dict), std::begin(expected_dict), std::end(expected_dict));
+        BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(dict), std::end(dict), std::begin(expected_dict),
+                                      std::end(expected_dict));
     }
 
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
-constexpr parquet4seastar::bytes_view operator ""_bv(const char* str, size_t len) noexcept {
+constexpr parquet4seastar::bytes_view operator""_bv(const char* str, size_t len) noexcept {
     return {static_cast<const uint8_t*>(static_cast<const void*>(str)), len};
 }
 
@@ -118,12 +111,11 @@ SEASTAR_TEST_CASE(dict_encoder_byte_array_happy) {
         BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(decoded), std::end(decoded), std::begin(expected), std::end(expected));
 
         auto dict = *encoder->view_dict();
-        bytes expected_dict = {
-            0x02, 0x00, 0x00, 0x00, 'b', 'b',
-            0x02, 0x00, 0x00, 0x00, 'a', 'a',
-            0x02, 0x00, 0x00, 0x00, 'c', 'c'};
+        bytes expected_dict = {0x02, 0x00, 0x00, 0x00, 'b',  'b',  0x02, 0x00, 0x00,
+                               0x00, 'a',  'a',  0x02, 0x00, 0x00, 0x00, 'c',  'c'};
         BOOST_CHECK_EQUAL(std::size(dict), std::size(expected_dict));
-        BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(dict), std::end(dict), std::begin(expected_dict), std::end(expected_dict));
+        BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(dict), std::end(dict), std::begin(expected_dict),
+                                      std::end(expected_dict));
     }
     {
         uint8_t out[10000];
@@ -144,14 +136,11 @@ SEASTAR_TEST_CASE(dict_encoder_byte_array_happy) {
         BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(decoded), std::end(decoded), std::begin(expected), std::end(expected));
 
         auto dict = *encoder->view_dict();
-        bytes expected_dict = {
-            0x02, 0x00, 0x00, 0x00, 'b', 'b',
-            0x02, 0x00, 0x00, 0x00, 'a', 'a',
-            0x02, 0x00, 0x00, 0x00, 'c', 'c',
-            0x02, 0x00, 0x00, 0x00, 'd', 'd',
-            0x02, 0x00, 0x00, 0x00, 'e', 'e'};
+        bytes expected_dict = {0x02, 0x00, 0x00, 0x00, 'b',  'b',  0x02, 0x00, 0x00, 0x00, 'a',  'a',  0x02, 0x00, 0x00,
+                               0x00, 'c',  'c',  0x02, 0x00, 0x00, 0x00, 'd',  'd',  0x02, 0x00, 0x00, 0x00, 'e',  'e'};
         BOOST_CHECK_EQUAL(std::size(dict), std::size(expected_dict));
-        BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(dict), std::end(dict), std::begin(expected_dict), std::end(expected_dict));
+        BOOST_CHECK_EQUAL_COLLECTIONS(std::begin(dict), std::end(dict), std::begin(expected_dict),
+                                      std::end(expected_dict));
     }
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }

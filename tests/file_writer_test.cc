@@ -19,14 +19,14 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-#include <parquet4seastar/file_writer.hh>
 #include <parquet4seastar/cql_reader.hh>
-#include <seastar/testing/test_case.hh>
+#include <parquet4seastar/file_writer.hh>
 #include <seastar/core/thread.hh>
+#include <seastar/testing/test_case.hh>
 
 const std::string test_file_name = "/tmp/parquet4seastar_file_writer_test.parquet";
 
-constexpr parquet4seastar::bytes_view operator ""_bv(const char* str, size_t len) noexcept {
+constexpr parquet4seastar::bytes_view operator""_bv(const char* str, size_t len) noexcept {
     return {static_cast<const uint8_t*>(static_cast<const void*>(str)), len};
 }
 
@@ -63,32 +63,30 @@ SEASTAR_TEST_CASE(full_roundtrip) {
 
     return seastar::async([] {
         // Write
-        writer_schema::schema writer_schema = [] () -> writer_schema::schema {
+        writer_schema::schema writer_schema = []() -> writer_schema::schema {
             using namespace writer_schema;
             return schema{vec<node>(
-                map_node {"Map", true,
-                    box<node>(primitive_node{
-                        "Map key",
-                        false,
-                        logical_type::STRING{},
-                        {},
-                        format::Encoding::RLE_DICTIONARY,
-                        format::CompressionCodec::GZIP}),
-                    box<node>(primitive_node{
-                        "Map value",
-                        false,
-                        logical_type::INT32{},
-                        {},
-                        format::Encoding::PLAIN,
-                        format::CompressionCodec::SNAPPY}),
-                },
-                list_node {"List", true,
-                    box<node>(struct_node{"Struct", true, vec<node>(
-                        primitive_node{"Struct field 1", false, logical_type::FLOAT{}},
-                        primitive_node{"Struct field 2", false, logical_type::DOUBLE{}}
-                    )})
-                }
-            )};
+              map_node{
+                "Map",
+                true,
+                box<node>(primitive_node{"Map key",
+                                         false,
+                                         logical_type::STRING{},
+                                         {},
+                                         format::Encoding::RLE_DICTIONARY,
+                                         format::CompressionCodec::GZIP}),
+                box<node>(primitive_node{"Map value",
+                                         false,
+                                         logical_type::INT32{},
+                                         {},
+                                         format::Encoding::PLAIN,
+                                         format::CompressionCodec::SNAPPY}),
+              },
+              list_node{
+                "List", true,
+                box<node>(struct_node{"Struct", true,
+                                      vec<node>(primitive_node{"Struct field 1", false, logical_type::FLOAT{}},
+                                                primitive_node{"Struct field 2", false, logical_type::DOUBLE{}})})})};
         }();
 
         std::unique_ptr<file_writer> fw = file_writer::open(test_file_name, writer_schema).get0();

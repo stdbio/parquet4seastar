@@ -19,11 +19,10 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-
-#include <seastar/testing/test_case.hh>
 #include <parquet4seastar/compression.hh>
 #include <parquet4seastar/exception.hh>
 #include <seastar/core/thread.hh>
+#include <seastar/testing/test_case.hh>
 
 namespace parquet4seastar::compression {
 
@@ -48,21 +47,19 @@ void test_compression_overflow(format::CompressionCodec::type compression) {
 SEASTAR_TEST_CASE(compression_uncompressed) {
     test_compression_happy(format::CompressionCodec::UNCOMPRESSED);
     test_compression_overflow(format::CompressionCodec::UNCOMPRESSED);
-    return seastar::async([](){});
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(compression_gzip) {
     test_compression_happy(format::CompressionCodec::GZIP);
     test_compression_overflow(format::CompressionCodec::GZIP);
-    return seastar::async([](){});
-
+    return seastar::async([]() {});
 }
 
 SEASTAR_TEST_CASE(compression_snappy) {
     test_compression_happy(format::CompressionCodec::SNAPPY);
     test_compression_overflow(format::CompressionCodec::SNAPPY);
-    return seastar::async([](){});
-
+    return seastar::async([]() {});
 }
 
-} // namespace parquet4seastar
+}  // namespace parquet4seastar::compression

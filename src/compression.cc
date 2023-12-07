@@ -19,14 +19,16 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-#include <parquet4seastar/compression.hh>
-#include <parquet4seastar/exception.hh>
 #include <snappy.h>
 #include <zlib.h>
 
+#include <parquet4seastar/compression.hh>
+#include <parquet4seastar/exception.hh>
+
 namespace parquet4seastar {
 
-class uncompressed_compressor final : public compressor {
+class uncompressed_compressor final : public compressor
+{
     bytes decompress(bytes_view in, bytes&& out) const override {
         if (out.size() < in.size()) {
             throw parquet_exception::corrupted_file("Uncompression buffer size too small");
@@ -41,12 +43,11 @@ class uncompressed_compressor final : public compressor {
         out.insert(out.end(), in.begin(), in.end());
         return std::move(out);
     }
-    format::CompressionCodec::type type() const override {
-        return format::CompressionCodec::UNCOMPRESSED;
-    }
+    format::CompressionCodec::type type() const override { return format::CompressionCodec::UNCOMPRESSED; }
 };
 
-class snappy_compressor final : public compressor {
+class snappy_compressor final : public compressor
+{
     bytes decompress(bytes_view in, bytes&& out) const override {
         size_t uncompressed_size;
         const char* in_data = reinterpret_cast<const char*>(in.data());
@@ -57,7 +58,7 @@ class snappy_compressor final : public compressor {
             throw parquet_exception::corrupted_file("Uncompression buffer size too small");
         }
         out.resize(uncompressed_size);
-        char *out_data = reinterpret_cast<char*>(out.data());
+        char* out_data = reinterpret_cast<char*>(out.data());
         if (!snappy::RawUncompress(in_data, in.size(), out_data)) {
             throw parquet_exception("Could not decompress snappy.");
         }
@@ -72,12 +73,11 @@ class snappy_compressor final : public compressor {
         out.resize(compressed_size);
         return std::move(out);
     }
-    format::CompressionCodec::type type() const override {
-        return format::CompressionCodec::SNAPPY;
-    }
+    format::CompressionCodec::type type() const override { return format::CompressionCodec::SNAPPY; }
 };
 
-class gzip_compressor final : public compressor {
+class gzip_compressor final : public compressor
+{
     bytes decompress(bytes_view in, bytes&& out) const override {
         z_stream zs;
         zs.zalloc = Z_NULL;
@@ -140,9 +140,7 @@ class gzip_compressor final : public compressor {
         }
         return std::move(out);
     }
-    format::CompressionCodec::type type() const override {
-        return format::CompressionCodec::GZIP;
-    }
+    format::CompressionCodec::type type() const override { return format::CompressionCodec::GZIP; }
 };
 
 std::unique_ptr<compressor> compressor::make(format::CompressionCodec::type compression) {
@@ -157,4 +155,4 @@ std::unique_ptr<compressor> compressor::make(format::CompressionCodec::type comp
     }
 }
 
-} // namespace parquet4seastar
+}  // namespace parquet4seastar

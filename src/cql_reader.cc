@@ -19,12 +19,12 @@
  * Copyright (C) 2020 ScyllaDB
  */
 
-#include <parquet4seastar/record_reader.hh>
-#include <parquet4seastar/cql_reader.hh>
-#include <parquet4seastar/overloaded.hh>
-#include <parquet4seastar/y_combinator.hh>
 #include <boost/multiprecision/cpp_int.hpp>
 #include <iomanip>
+#include <parquet4seastar/cql_reader.hh>
+#include <parquet4seastar/overloaded.hh>
+#include <parquet4seastar/record_reader.hh>
+#include <parquet4seastar/y_combinator.hh>
 #include <ranges>
 
 namespace parquet4seastar::cql {
@@ -33,7 +33,8 @@ using namespace logical_type;
 
 namespace {
 
-class cql_consumer {
+class cql_consumer
+{
     bool first_field = true;
     std::ostream& _out;
     std::string _column_selector;
@@ -81,18 +82,13 @@ class cql_consumer {
         uint64_t minutes = v % 60;
         v /= 60;
         uint64_t hours = v;
-        _out << '\''
-                << std::setfill('0')
-                << std::setw(2) << hours << ':'
-                << std::setw(2) << minutes << ':'
-                << std::setw(2) << seconds << '.'
-                << std::setw(fractional_digits) << fractional_part
-                << '\'';
+        _out << '\'' << std::setfill('0') << std::setw(2) << hours << ':' << std::setw(2) << minutes << ':'
+             << std::setw(2) << seconds << '.' << std::setw(fractional_digits) << fractional_part << '\'';
     }
-public:
+
+   public:
     explicit cql_consumer(std::ostream& out, std::string column_selector)
-        : _out{out}
-        , _column_selector{std::move(column_selector)} {}
+        : _out{out}, _column_selector{std::move(column_selector)} {}
     void start_record() {
         _out << "INSERT INTO ";
         _out << _column_selector;
@@ -103,9 +99,7 @@ public:
         ++_row_number;
         _out << ");\n";
     }
-    void start_column(const std::string& s) {
-        _out << ", ";
-    }
+    void start_column(const std::string& s) { _out << ", "; }
     void start_struct() {
         _out << '{';
         first_field = true;
@@ -123,30 +117,14 @@ public:
         print_quoted_identifier(s);
         _out << ": ";
     }
-    void start_list() {
-        _out << '[';
-    }
-    void end_list() {
-        _out << ']';
-    }
-    void start_map() {
-        _out << '{';
-    }
-    void end_map() {
-        _out << '}';
-    }
-    void separate_key_value() {
-        _out << ": ";
-    }
-    void separate_list_values() {
-        _out << ", ";
-    }
-    void separate_map_values() {
-        _out << ", ";
-    }
-    void append_null() {
-        _out << "null";
-    }
+    void start_list() { _out << '['; }
+    void end_list() { _out << ']'; }
+    void start_map() { _out << '{'; }
+    void end_map() { _out << '}'; }
+    void separate_key_value() { _out << ": "; }
+    void separate_list_values() { _out << ", "; }
+    void separate_map_values() { _out << ", "; }
+    void append_null() { _out << "null"; }
     void append_value(STRING, seastar::temporary_buffer<uint8_t> v) { print_quoted_string(v); }
     void append_value(ENUM, seastar::temporary_buffer<uint8_t> v) { print_quoted_string(v); }
     void append_value(UUID, seastar::temporary_buffer<uint8_t> v) {
@@ -185,9 +163,7 @@ public:
         _out << x << "e-" << t.scale;
     }
     void append_value(DATE, int32_t v) { _out << static_cast<uint32_t>(v) + (1u << 31u); }
-    void append_value(TIME_INT32 t, int32_t v) {
-        print_time(static_cast<uint64_t>(v), 1000, 3);
-    }
+    void append_value(TIME_INT32 t, int32_t v) { print_time(static_cast<uint64_t>(v), 1000, 3); }
     void append_value(TIME_INT64 t, int64_t v) {
         if (t.unit == t.MICROS) {
             print_time(static_cast<uint64_t>(v), 1'000'000, 6);
@@ -220,10 +196,10 @@ public:
     void append_value(BOOLEAN, uint8_t v) { _out << (v ? "true" : "false"); }
     void append_value(BYTE_ARRAY, seastar::temporary_buffer<uint8_t> v) { print_blob(v); }
     void append_value(FIXED_LEN_BYTE_ARRAY, seastar::temporary_buffer<uint8_t> v) { print_blob(v); }
-
 };
 
-struct node {
+struct node
+{
     const reader_schema::node& parquet_node;
     std::string cql_type;
     std::string identifier;
@@ -231,51 +207,52 @@ struct node {
     bool is_udt;
 };
 
-struct cql_schema {
+struct cql_schema
+{
     const reader_schema::schema& parquet_schema;
     std::vector<node> columns;
 };
 
 const char* primitive_cql_type(const reader_schema::primitive_node& leaf) {
-    return std::visit(overloaded {
-        [] (const STRING&) { return "text"; },
-        [] (const ENUM&) { return "text"; },
-        [] (const UUID&) { return "uuid"; },
-        [] (const INT8&) { return "tinyint"; },
-        [] (const INT16&) { return "smallint"; },
-        [] (const INT32&) { return "int"; },
-        [] (const INT64&) { return "bigint"; },
-        [] (const UINT8&) { return "smallint"; },
-        [] (const UINT16&) { return "int"; },
-        [] (const UINT32&) { return "bigint"; },
-        [] (const UINT64&) { return "varint"; },
-        [] (const DECIMAL_INT32&) { return "decimal"; },
-        [] (const DECIMAL_INT64&) { return "decimal"; },
-        [] (const DECIMAL_BYTE_ARRAY&) { return "decimal"; },
-        [] (const DECIMAL_FIXED_LEN_BYTE_ARRAY&) { return "decimal"; },
-        [] (const DATE&) { return "date"; },
-        [] (const TIME_INT32&) { return "time"; },
-        [] (const TIME_INT64&) { return "time"; },
-        [] (const TIMESTAMP& t) { return t.unit == TIMESTAMP::MILLIS ? "timestamp" : "bigint"; },
-        [] (const INTERVAL&) { return "duration"; },
-        [] (const JSON&) { return "text"; },
-        [] (const BSON&) { return "blob"; },
-        [] (const FLOAT&) { return "float"; },
-        [] (const DOUBLE&) { return "double"; },
-        [] (const BYTE_ARRAY&) { return "blob"; },
-        [] (const FIXED_LEN_BYTE_ARRAY&) { return "blob"; },
-        [] (const INT96&) { return "varint"; },
-        [] (const BOOLEAN&) { return "boolean"; },
-        [] (const UNKNOWN&) { return "int"; },
-        [] (const auto&) {
-            throw parquet_exception("unreachable code");
-            return "";
-        }
-    }, leaf.logical_type);
+    return std::visit(
+      overloaded{[](const STRING&) { return "text"; },
+                 [](const ENUM&) { return "text"; },
+                 [](const UUID&) { return "uuid"; },
+                 [](const INT8&) { return "tinyint"; },
+                 [](const INT16&) { return "smallint"; },
+                 [](const INT32&) { return "int"; },
+                 [](const INT64&) { return "bigint"; },
+                 [](const UINT8&) { return "smallint"; },
+                 [](const UINT16&) { return "int"; },
+                 [](const UINT32&) { return "bigint"; },
+                 [](const UINT64&) { return "varint"; },
+                 [](const DECIMAL_INT32&) { return "decimal"; },
+                 [](const DECIMAL_INT64&) { return "decimal"; },
+                 [](const DECIMAL_BYTE_ARRAY&) { return "decimal"; },
+                 [](const DECIMAL_FIXED_LEN_BYTE_ARRAY&) { return "decimal"; },
+                 [](const DATE&) { return "date"; },
+                 [](const TIME_INT32&) { return "time"; },
+                 [](const TIME_INT64&) { return "time"; },
+                 [](const TIMESTAMP& t) { return t.unit == TIMESTAMP::MILLIS ? "timestamp" : "bigint"; },
+                 [](const INTERVAL&) { return "duration"; },
+                 [](const JSON&) { return "text"; },
+                 [](const BSON&) { return "blob"; },
+                 [](const FLOAT&) { return "float"; },
+                 [](const DOUBLE&) { return "double"; },
+                 [](const BYTE_ARRAY&) { return "blob"; },
+                 [](const FIXED_LEN_BYTE_ARRAY&) { return "blob"; },
+                 [](const INT96&) { return "varint"; },
+                 [](const BOOLEAN&) { return "boolean"; },
+                 [](const UNKNOWN&) { return "int"; },
+                 [](const auto&) {
+                     throw parquet_exception("unreachable code");
+                     return "";
+                 }},
+      leaf.logical_type);
 }
 
 void print_udt_create_statements(const cql_schema& cql_schema, std::string& out) {
-    auto print = y_combinator{[&out] (auto&& print, const node& x) -> void {
+    auto print = y_combinator{[&out](auto&& print, const node& x) -> void {
         for (const node& child : x.children) {
             print(child);
         }
@@ -283,7 +260,7 @@ void print_udt_create_statements(const cql_schema& cql_schema, std::string& out)
             out += "CREATE TYPE ";
             out += x.cql_type;
             out += " (";
-            const char *separator = "";
+            const char* separator = "";
             for (const node& child : x.children) {
                 out += separator;
                 separator = ", ";
@@ -321,33 +298,33 @@ std::string quote_identifier(const std::string& x) {
     return quoted;
 }
 
-
 cql_schema parquet_schema_to_cql_schema(const reader_schema::schema& parquet_schema, const std::string& table) {
     int udt_index = 0;
-    auto convert = y_combinator{[&] (auto&& convert, const reader_schema::node& parquet_node) -> node {
-        return std::visit(overloaded {
-            [&] (const reader_schema::primitive_node& x) {
+    auto convert = y_combinator{[&](auto&& convert, const reader_schema::node& parquet_node) -> node {
+        return std::visit(
+          overloaded{
+            [&](const reader_schema::primitive_node& x) {
                 return node{parquet_node, primitive_cql_type(x), quote_identifier(x.info.name)};
             },
-            [&] (const reader_schema::list_node& x) {
+            [&](const reader_schema::list_node& x) {
                 node element = convert(*x.element);
                 std::string type = "frozen<list<" + element.cql_type + ">>";
                 return node{parquet_node, std::move(type), quote_identifier(x.info.name), {std::move(element)}};
             },
-            [&] (const reader_schema::map_node& x) {
+            [&](const reader_schema::map_node& x) {
                 node key = convert(*x.key);
                 node value = convert(*x.value);
                 std::string type = "frozen<map<" + key.cql_type + ", " + value.cql_type + ">>";
-                return node{parquet_node, std::move(type), quote_identifier(x.info.name),
-                            {std::move(key), std::move(value)}};
+                return node{
+                  parquet_node, std::move(type), quote_identifier(x.info.name), {std::move(key), std::move(value)}};
             },
-            [&] (const reader_schema::optional_node& x) {
+            [&](const reader_schema::optional_node& x) {
                 node child = convert(*x.child);
                 std::string type = child.cql_type;
                 bool is_udt = child.is_udt;
                 return node{parquet_node, child.cql_type, quote_identifier(x.info.name), {std::move(child)}, is_udt};
             },
-            [&] (const reader_schema::struct_node& x) {
+            [&](const reader_schema::struct_node& x) {
                 std::vector<node> children;
                 children.reserve(x.fields.size());
                 for (const auto& field : x.fields) {
@@ -357,7 +334,8 @@ cql_schema parquet_schema_to_cql_schema(const reader_schema::schema& parquet_sch
                 ++udt_index;
                 return node{parquet_node, std::move(type), quote_identifier(x.info.name), std::move(children), true};
             },
-        }, parquet_node);
+          },
+          parquet_node);
     }};
     std::vector<node> columns;
     columns.reserve(parquet_schema.fields.size());
@@ -399,7 +377,7 @@ std::string cql_schema_to_cql_column_list(const cql_schema& schema, const std::s
     return out;
 }
 
-} // namespace
+}  // namespace
 
 seastar::future<> parquet_to_cql(file_reader& fr, const std::string& table, const std::string& pk, std::ostream& out) {
     std::string quoted_pk = quote_identifier(pk);
@@ -407,11 +385,10 @@ seastar::future<> parquet_to_cql(file_reader& fr, const std::string& table, cons
     cql_schema schema = parquet_schema_to_cql_schema(fr.schema(), table);
     out << cql_schema_to_cql_create(schema, quoted_table, quoted_pk);
     auto consumer = cql_consumer{out, cql_schema_to_cql_column_list(schema, quoted_table, quoted_pk)};
-    for(auto row_group: std::ranges::iota_view(0, static_cast<int>(fr.metadata().row_groups.size()))) {
+    for (auto row_group : std::ranges::iota_view(0, static_cast<int>(fr.metadata().row_groups.size()))) {
         auto rr = co_await record::record_reader::make(fr, row_group);
         co_await rr.read_all(consumer);
     }
 }
 
-} // namespace parquet4seastar::cql
-
+}  // namespace parquet4seastar::cql

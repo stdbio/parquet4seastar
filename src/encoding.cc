@@ -23,10 +23,7 @@
 
 namespace parquet4seastar {
 
-size_t level_decoder::reset_v1(
-        bytes_view buffer,
-        format::Encoding::type encoding,
-        uint32_t num_values) {
+size_t level_decoder::reset_v1(bytes_view buffer, format::Encoding::type encoding, uint32_t num_values) {
     _num_values = num_values;
     _values_read = 0;
     if (_bit_width == 0) {
@@ -34,8 +31,8 @@ size_t level_decoder::reset_v1(
     }
     if (encoding == format::Encoding::RLE) {
         if (buffer.size() < 4) {
-            throw parquet_exception::corrupted_file(seastar::format(
-                    "End of page while reading levels (needed {}B, got {}B)", 4, buffer.size()));
+            throw parquet_exception::corrupted_file(
+              seastar::format("End of page while reading levels (needed {}B, got {}B)", 4, buffer.size()));
         }
         int32_t len;
         std::memcpy(&len, buffer.data(), 4);
@@ -43,8 +40,8 @@ size_t level_decoder::reset_v1(
             throw parquet_exception::corrupted_file(seastar::format("Negative RLE levels length ({})", len));
         }
         if (static_cast<size_t>(len) > buffer.size()) {
-            throw parquet_exception::corrupted_file(seastar::format(
-                    "End of page while reading levels (needed {}B, got {}B)", len, buffer.size()));
+            throw parquet_exception::corrupted_file(
+              seastar::format("End of page while reading levels (needed {}B, got {}B)", len, buffer.size()));
         }
         _decoder = RleDecoder{buffer.data() + 4, len, static_cast<int>(_bit_width)};
         return 4 + len;
@@ -55,8 +52,8 @@ size_t level_decoder::reset_v1(
             throw parquet_exception::corrupted_file(seastar::format("BIT_PACKED length exceeds int ({}B)", byte_len));
         }
         if (byte_len > buffer.size()) {
-            throw parquet_exception::corrupted_file(seastar::format(
-                    "End of page while reading levels (needed {}B, got {}B)", byte_len, buffer.size()));
+            throw parquet_exception::corrupted_file(
+              seastar::format("End of page while reading levels (needed {}B, got {}B)", byte_len, buffer.size()));
         }
         _decoder = BitReader{buffer.data(), static_cast<int>(byte_len)};
         return byte_len;
@@ -69,77 +66,85 @@ void level_decoder::reset_v2(bytes_view encoded_levels, uint32_t num_values) {
     _num_values = num_values;
     _values_read = 0;
     if (encoded_levels.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
-        throw parquet_exception::corrupted_file(seastar::format(
-                "Levels length exceeds int ({}B)", encoded_levels.size()));
+        throw parquet_exception::corrupted_file(
+          seastar::format("Levels length exceeds int ({}B)", encoded_levels.size()));
     }
-    _decoder = RleDecoder{
-            encoded_levels.data(),
-            static_cast<int>(encoded_levels.size()),
-            static_cast<int>(_bit_width)};
+    _decoder = RleDecoder{encoded_levels.data(), static_cast<int>(encoded_levels.size()), static_cast<int>(_bit_width)};
 }
 
 template <format::Type::type ParquetType>
-class plain_decoder_trivial final : public decoder<ParquetType> {
+class plain_decoder_trivial final : public decoder<ParquetType>
+{
     bytes_view _buffer;
-public:
+
+   public:
     using typename decoder<ParquetType>::output_type;
     void reset(bytes_view data) override;
     size_t read_batch(size_t n, output_type out[]) override;
 };
 
-class plain_decoder_boolean final : public decoder<format::Type::BOOLEAN> {
+class plain_decoder_boolean final : public decoder<format::Type::BOOLEAN>
+{
     BitReader _decoder;
-public:
+
+   public:
     using typename decoder<format::Type::BOOLEAN>::output_type;
     void reset(bytes_view data) override;
     size_t read_batch(size_t n, output_type out[]) override;
 };
 
-class plain_decoder_byte_array final : public decoder<format::Type::BYTE_ARRAY> {
+class plain_decoder_byte_array final : public decoder<format::Type::BYTE_ARRAY>
+{
     seastar::temporary_buffer<uint8_t> _buffer;
-public:
+
+   public:
     using typename decoder<format::Type::BYTE_ARRAY>::output_type;
     void reset(bytes_view data) override;
     size_t read_batch(size_t n, output_type out[]) override;
 };
 
-class plain_decoder_fixed_len_byte_array final : public decoder<format::Type::FIXED_LEN_BYTE_ARRAY> {
+class plain_decoder_fixed_len_byte_array final : public decoder<format::Type::FIXED_LEN_BYTE_ARRAY>
+{
     size_t _fixed_len;
     seastar::temporary_buffer<uint8_t> _buffer;
-public:
+
+   public:
     using typename decoder<format::Type::FIXED_LEN_BYTE_ARRAY>::output_type;
-    explicit plain_decoder_fixed_len_byte_array(size_t fixed_len=0)
-            : _fixed_len(fixed_len) {}
+    explicit plain_decoder_fixed_len_byte_array(size_t fixed_len = 0) : _fixed_len(fixed_len) {}
     void reset(bytes_view data) override;
     size_t read_batch(size_t n, output_type out[]) override;
 };
 
 template <format::Type::type ParquetType>
-class dict_decoder final : public decoder<ParquetType> {
-public:
+class dict_decoder final : public decoder<ParquetType>
+{
+   public:
     using typename decoder<ParquetType>::output_type;
-private:
+
+   private:
     output_type* _dict;
     size_t _dict_size;
     RleDecoder _rle_decoder;
-public:
-    explicit dict_decoder(output_type dict[], size_t dict_size)
-            : _dict(dict)
-            , _dict_size(dict_size) {};
+
+   public:
+    explicit dict_decoder(output_type dict[], size_t dict_size) : _dict(dict), _dict_size(dict_size){};
     void reset(bytes_view data) override;
     size_t read_batch(size_t n, output_type out[]) override;
 };
 
-class rle_decoder_boolean final : public decoder<format::Type::BOOLEAN> {
+class rle_decoder_boolean final : public decoder<format::Type::BOOLEAN>
+{
     RleDecoder _rle_decoder;
-public:
+
+   public:
     using typename decoder<format::Type::BOOLEAN>::output_type;
     void reset(bytes_view data) override;
     size_t read_batch(size_t n, output_type out[]) override;
 };
 
 template <format::Type::type ParquetType>
-class delta_binary_packed_decoder final : public decoder<ParquetType> {
+class delta_binary_packed_decoder final : public decoder<ParquetType>
+{
     BitReader _decoder;
     uint64_t _values_per_block;
     uint64_t _num_mini_blocks;
@@ -153,7 +158,8 @@ class delta_binary_packed_decoder final : public decoder<ParquetType> {
     uint64_t _mini_block_idx;
     uint64_t _values_current_mini_block;
     uint64_t _values_per_mini_block;
-private:
+
+   private:
     void init_block() {
         int64_t min_delta;
         if (!_decoder.GetZigZagVlqInt(&min_delta)) {
@@ -168,12 +174,11 @@ private:
         }
         _mini_block_idx = 0;
     }
-public:
+
+   public:
     using typename decoder<ParquetType>::output_type;
 
-    size_t bytes_left() {
-        return _decoder.bytes_left();
-    }
+    size_t bytes_left() { return _decoder.bytes_left(); }
 
     void reset(bytes_view data) override {
         _decoder.Reset(data.data(), data.size());
@@ -249,20 +254,21 @@ public:
     }
 };
 
-class delta_length_byte_array_decoder final : public decoder<format::Type::BYTE_ARRAY> {
+class delta_length_byte_array_decoder final : public decoder<format::Type::BYTE_ARRAY>
+{
     seastar::temporary_buffer<byte> _values;
     std::vector<int32_t> _lengths;
     size_t _current_idx;
     static constexpr size_t BATCH_SIZE = 1000;
-public:
+
+   public:
     using typename decoder<format::Type::BYTE_ARRAY>::output_type;
     size_t read_batch(size_t n, output_type out[]) override {
         n = std::min(n, _lengths.size() - _current_idx);
         for (size_t i = 0; i < n; ++i) {
             uint32_t len = _lengths[_current_idx];
             if (len > _values.size()) {
-                throw parquet_exception(
-                        "Unexpected end of values in DELTA_LENGTH_BYTE_ARRAY");
+                throw parquet_exception("Unexpected end of values in DELTA_LENGTH_BYTE_ARRAY");
             }
             out[i] = _values.share(0, len);
             _values.trim_front(len);
@@ -293,14 +299,16 @@ public:
     }
 };
 
-class delta_byte_array_decoder final : public decoder<format::Type::BYTE_ARRAY> {
+class delta_byte_array_decoder final : public decoder<format::Type::BYTE_ARRAY>
+{
     using tb = seastar::temporary_buffer<byte>;
     std::vector<tb> _suffixes;
     std::vector<int32_t> _lengths;
     bytes _last_string;
     size_t _current_idx;
     static constexpr size_t BATCH_SIZE = 1000;
-public:
+
+   public:
     using typename decoder<format::Type::BYTE_ARRAY>::output_type;
     size_t read_batch(size_t n, output_type out[]) override {
         n = std::min(n, _suffixes.size() - _current_idx);
@@ -311,14 +319,8 @@ public:
                 throw parquet_exception("Invalid prefix length in DELTA_BYTE_ARRAY");
             }
             out[i] = tb(prefix_len + suffix.size());
-            std::copy_n(
-                    _last_string.begin(),
-                    prefix_len,
-                    out[i].get_write());
-            std::copy(
-                    suffix.begin(),
-                    suffix.end(),
-                    out[i].get_write() + prefix_len);
+            std::copy_n(_last_string.begin(), prefix_len, out[i].get_write());
+            std::copy(suffix.begin(), suffix.end(), out[i].get_write() + prefix_len);
             _last_string.resize(prefix_len);
             _last_string.insert(_last_string.end(), suffix.begin(), suffix.end());
         }
@@ -362,11 +364,13 @@ public:
 };
 
 template <format::Type::type ParquetType>
-class byte_stream_split_decoder final : public decoder<ParquetType> {
+class byte_stream_split_decoder final : public decoder<ParquetType>
+{
     bytes_view _data;
     size_t _current_idx;
     size_t _total_values;
-public:
+
+   public:
     using typename decoder<ParquetType>::output_type;
     size_t read_batch(size_t n, output_type out[]) override {
         n = std::min(n, _total_values - _current_idx);
@@ -384,8 +388,9 @@ public:
     }
     void reset(bytes_view data) override {
         if (data.size() % sizeof(output_type) != 0) {
-            throw parquet_exception( "Data size in BYTE_STREAM_SPLIT "
-                    "is not divisible by size of data type");
+            throw parquet_exception(
+              "Data size in BYTE_STREAM_SPLIT "
+              "is not divisible by size of data type");
         }
         _data = data;
         _total_values = data.size() / sizeof(output_type);
@@ -423,9 +428,7 @@ size_t plain_decoder_trivial<ParquetType>::read_batch(size_t n, output_type out[
     return n_to_read;
 }
 
-size_t plain_decoder_boolean::read_batch(size_t n, uint8_t out[]) {
-    return _decoder.GetBatch(1, out, n);
-}
+size_t plain_decoder_boolean::read_batch(size_t n, uint8_t out[]) { return _decoder.GetBatch(1, out, n); }
 
 size_t plain_decoder_byte_array::read_batch(size_t n, seastar::temporary_buffer<uint8_t> out[]) {
     for (size_t i = 0; i < n; ++i) {
@@ -433,15 +436,15 @@ size_t plain_decoder_byte_array::read_batch(size_t n, seastar::temporary_buffer<
             return i;
         }
         if (_buffer.size() < 4) {
-            throw parquet_exception::corrupted_file(seastar::format(
-                    "End of page while reading BYTE_ARRAY length (needed {}B, got {}B)", 4, _buffer.size()));
+            throw parquet_exception::corrupted_file(
+              seastar::format("End of page while reading BYTE_ARRAY length (needed {}B, got {}B)", 4, _buffer.size()));
         }
         uint32_t len;
         std::memcpy(&len, _buffer.get(), 4);
         _buffer.trim_front(4);
         if (len > _buffer.size()) {
-            throw parquet_exception::corrupted_file(seastar::format(
-                    "End of page while reading BYTE_ARRAY (needed {}B, got {}B)", len, _buffer.size()));
+            throw parquet_exception::corrupted_file(
+              seastar::format("End of page while reading BYTE_ARRAY (needed {}B, got {}B)", len, _buffer.size()));
         }
         out[i] = _buffer.share(0, len);
         _buffer.trim_front(len);
@@ -456,8 +459,7 @@ size_t plain_decoder_fixed_len_byte_array::read_batch(size_t n, seastar::tempora
         }
         if (_fixed_len > _buffer.size()) {
             throw parquet_exception::corrupted_file(seastar::format(
-                    "End of page while reading FIXED_LEN_BYTE_ARRAY (needed {}B, got {}B)",
-                    _fixed_len, _buffer.size()));
+              "End of page while reading FIXED_LEN_BYTE_ARRAY (needed {}B, got {}B)", _fixed_len, _buffer.size()));
         }
         out[i] = _buffer.share(0, _fixed_len);
         _buffer.trim_front(_fixed_len);
@@ -472,8 +474,8 @@ void dict_decoder<ParquetType>::reset(bytes_view data) {
     }
     int bit_width = data.data()[0];
     if (bit_width < 0 || bit_width > 32) {
-        throw parquet_exception::corrupted_file(seastar::format(
-                "Illegal dictionary index bit width (should be 0 <= bit width <= 32, got {})", bit_width));
+        throw parquet_exception::corrupted_file(
+          seastar::format("Illegal dictionary index bit width (should be 0 <= bit width <= 32, got {})", bit_width));
     }
     _rle_decoder.Reset(data.data() + 1, data.size() - 1, bit_width);
 }
@@ -487,8 +489,8 @@ size_t dict_decoder<ParquetType>::read_batch(size_t n, output_type out[]) {
         size_t n_read = _rle_decoder.GetBatch(std::data(buf), n_to_read);
         for (size_t i = 0; i < n_read; ++i) {
             if (buf[i] > _dict_size) {
-                throw parquet_exception::corrupted_file(seastar::format(
-                        "Dict index exceeds dict size (dict size = {}, index = {})", _dict_size, buf[i]));
+                throw parquet_exception::corrupted_file(
+                  seastar::format("Dict index exceeds dict size (dict size = {}, index = {})", _dict_size, buf[i]));
             }
             if constexpr (std::is_trivially_copyable_v<output_type>) {
                 out[completed] = _dict[buf[i]];
@@ -505,14 +507,9 @@ size_t dict_decoder<ParquetType>::read_batch(size_t n, output_type out[]) {
     return completed;
 }
 
-void rle_decoder_boolean::reset(bytes_view data) {
-    _rle_decoder.Reset(data.data(), data.size(), 1);
-}
+void rle_decoder_boolean::reset(bytes_view data) { _rle_decoder.Reset(data.data(), data.size(), 1); }
 
-size_t rle_decoder_boolean::read_batch(size_t n, uint8_t out[]) {
-    return _rle_decoder.GetBatch(out, n);
-}
-
+size_t rle_decoder_boolean::read_batch(size_t n, uint8_t out[]) { return _rle_decoder.GetBatch(out, n); }
 
 template <format::Type::type ParquetType>
 void value_decoder<ParquetType>::reset_dict(output_type dictionary[], size_t dictionary_size) {
@@ -521,7 +518,7 @@ void value_decoder<ParquetType>::reset_dict(output_type dictionary[], size_t dic
     _dict_set = true;
 };
 
-template<format::Type::type ParquetType>
+template <format::Type::type ParquetType>
 void value_decoder<ParquetType>::reset(bytes_view buf, format::Encoding::type encoding) {
     switch (encoding) {
         case format::Encoding::PLAIN:
@@ -583,7 +580,7 @@ void value_decoder<ParquetType>::reset(bytes_view buf, format::Encoding::type en
     _decoder->reset(buf);
 };
 
-template<format::Type::type ParquetType>
+template <format::Type::type ParquetType>
 size_t value_decoder<ParquetType>::read_batch(size_t n, output_type out[]) {
     return _decoder->read_batch(n, out);
 };
@@ -614,21 +611,22 @@ template class value_decoder<format::Type::BYTE_ARRAY>;
 template class value_decoder<format::Type::FIXED_LEN_BYTE_ARRAY>;
 
 template <format::Type::type ParquetType>
-class plain_encoder : public value_encoder<ParquetType> {
-public:
+class plain_encoder : public value_encoder<ParquetType>
+{
+   public:
     using typename value_encoder<ParquetType>::input_type;
     using typename value_encoder<ParquetType>::flush_result;
-private:
+
+   private:
     std::vector<input_type> _buf;
-public:
+
+   public:
     bytes_view view() const {
         const byte* data = reinterpret_cast<const byte*>(_buf.data());
         size_t size = _buf.size() * sizeof(input_type);
         return {data, size};
     }
-    void put_batch(const input_type data[], size_t size) override {
-        _buf.insert(_buf.end(), data, data + size);
-    }
+    void put_batch(const input_type data[], size_t size) override { _buf.insert(_buf.end(), data, data + size); }
     size_t max_encoded_size() const override { return view().size(); }
     flush_result flush(byte sink[]) override {
         bytes_view v = view();
@@ -641,22 +639,23 @@ public:
 };
 
 template <>
-class plain_encoder<format::Type::BYTE_ARRAY>
-        : public value_encoder<format::Type::BYTE_ARRAY> {
-public:
+class plain_encoder<format::Type::BYTE_ARRAY> : public value_encoder<format::Type::BYTE_ARRAY>
+{
+   public:
     using typename value_encoder<format::Type::BYTE_ARRAY>::input_type;
     using typename value_encoder<format::Type::BYTE_ARRAY>::flush_result;
-private:
+
+   private:
     bytes _buf;
-private:
+
+   private:
     void put(const input_type& str) {
         append_raw_bytes<uint32_t>(_buf, str.size());
         _buf.insert(_buf.end(), str.begin(), str.end());
     }
-public:
-    bytes_view view() const {
-        return {_buf.data(), _buf.size()};
-    }
+
+   public:
+    bytes_view view() const { return {_buf.data(), _buf.size()}; }
     void put_batch(const input_type data[], size_t size) override {
         for (size_t i = 0; i < size; ++i) {
             put(data[i]);
@@ -674,21 +673,20 @@ public:
 };
 
 template <>
-class plain_encoder<format::Type::FIXED_LEN_BYTE_ARRAY>
-        : public value_encoder<format::Type::FIXED_LEN_BYTE_ARRAY> {
-public:
+class plain_encoder<format::Type::FIXED_LEN_BYTE_ARRAY> : public value_encoder<format::Type::FIXED_LEN_BYTE_ARRAY>
+{
+   public:
     using typename value_encoder<format::Type::FIXED_LEN_BYTE_ARRAY>::input_type;
     using typename value_encoder<format::Type::FIXED_LEN_BYTE_ARRAY>::flush_result;
-private:
+
+   private:
     bytes _buf;
-private:
-    void put(const input_type& str) {
-        _buf.insert(_buf.end(), str.begin(), str.end());
-    }
-public:
-    bytes_view view() const {
-        return {_buf.data(), _buf.size()};
-    }
+
+   private:
+    void put(const input_type& str) { _buf.insert(_buf.end(), str.begin(), str.end()); }
+
+   public:
+    bytes_view view() const { return {_buf.data(), _buf.size()}; }
     void put_batch(const input_type data[], size_t size) override {
         for (size_t i = 0; i < size; ++i) {
             put(data[i]);
@@ -706,13 +704,16 @@ public:
 };
 
 template <format::Type::type ParquetType>
-class dict_builder {
-public:
+class dict_builder
+{
+   public:
     using input_type = typename value_decoder_traits<ParquetType>::input_type;
-private:
+
+   private:
     std::unordered_map<input_type, uint32_t> _accumulator;
     plain_encoder<ParquetType> _dict;
-public:
+
+   public:
     uint32_t put(input_type key) {
         auto [iter, was_new_key] = _accumulator.try_emplace(key, _accumulator.size());
         if (was_new_key) {
@@ -725,11 +726,13 @@ public:
 };
 
 template <>
-class dict_builder<format::Type::BYTE_ARRAY> {
-private:
+class dict_builder<format::Type::BYTE_ARRAY>
+{
+   private:
     std::unordered_map<bytes, uint32_t, bytes_hasher> _accumulator;
     plain_encoder<format::Type::BYTE_ARRAY> _dict;
-public:
+
+   public:
     uint32_t put(bytes_view key) {
         auto [it, was_new_key] = _accumulator.try_emplace(bytes{key}, _accumulator.size());
         if (was_new_key) {
@@ -742,11 +745,13 @@ public:
 };
 
 template <>
-class dict_builder<format::Type::FIXED_LEN_BYTE_ARRAY> {
-private:
+class dict_builder<format::Type::FIXED_LEN_BYTE_ARRAY>
+{
+   private:
     std::unordered_map<bytes, uint32_t, bytes_hasher> _accumulator;
     plain_encoder<format::Type::FIXED_LEN_BYTE_ARRAY> _dict;
-public:
+
+   public:
     uint32_t put(bytes_view key) {
         auto [it, was_new_key] = _accumulator.try_emplace(bytes{key}, _accumulator.size());
         if (was_new_key) {
@@ -759,15 +764,16 @@ public:
 };
 
 template <format::Type::type ParquetType>
-class dict_encoder : public value_encoder<ParquetType> {
-private:
+class dict_encoder : public value_encoder<ParquetType>
+{
+   private:
     std::vector<uint32_t> _indices;
     dict_builder<ParquetType> _values;
-private:
-    int index_bit_width() const {
-        return bit_width(_values.cardinality());
-    }
-public:
+
+   private:
+    int index_bit_width() const { return bit_width(_values.cardinality()); }
+
+   public:
     using typename value_encoder<ParquetType>::input_type;
     using typename value_encoder<ParquetType>::flush_result;
     void put_batch(const input_type data[], size_t size) override {
@@ -777,9 +783,8 @@ public:
         }
     }
     size_t max_encoded_size() const override {
-        return 1
-                + RleEncoder::MinBufferSize(index_bit_width())
-                + RleEncoder::MaxBufferSize(index_bit_width(), _indices.size());
+        return 1 + RleEncoder::MinBufferSize(index_bit_width()) +
+               RleEncoder::MaxBufferSize(index_bit_width(), _indices.size());
     }
     flush_result flush(byte sink[]) override {
         *sink = static_cast<byte>(index_bit_width());
@@ -799,12 +804,13 @@ public:
 // Dict encoder, but it falls back to plain encoding
 // when the dict page grows too big.
 template <format::Type::type ParquetType>
-class dict_or_plain_encoder : public value_encoder<ParquetType> {
-private:
+class dict_or_plain_encoder : public value_encoder<ParquetType>
+{
+   private:
     dict_encoder<ParquetType> _dict_encoder;
     plain_encoder<ParquetType> _plain_encoder;
-    bool fallen_back = false; // Have we fallen back to plain yet?
-public:
+    bool fallen_back = false;  // Have we fallen back to plain yet?
+   public:
     using typename value_encoder<ParquetType>::input_type;
     using typename value_encoder<ParquetType>::flush_result;
     // Will fall back to plain encoding when dict page grows
@@ -834,51 +840,50 @@ public:
             return _dict_encoder.flush(sink);
         }
     }
-    std::optional<bytes_view> view_dict() override {
-        return _dict_encoder.view_dict();
-    }
-    uint64_t cardinality() override {
-        return _dict_encoder.cardinality();
-    }
+    std::optional<bytes_view> view_dict() override { return _dict_encoder.view_dict(); }
+    uint64_t cardinality() override { return _dict_encoder.cardinality(); }
 };
 
 template <format::Type::type ParquetType>
 struct arithmetic_type;
 
 template <>
-struct arithmetic_type<format::Type::INT32> {
+struct arithmetic_type<format::Type::INT32>
+{
     using signed_type = int32_t;
     using unsigned_type = uint32_t;
 };
 
 template <>
-struct arithmetic_type<format::Type::INT64> {
+struct arithmetic_type<format::Type::INT64>
+{
     using signed_type = int64_t;
     using unsigned_type = uint64_t;
 };
 
 template <format::Type::type ParquetType>
-class delta_binary_packed_encoder : public value_encoder<ParquetType> {
+class delta_binary_packed_encoder : public value_encoder<ParquetType>
+{
     static_assert(ParquetType == format::Type::INT32 || ParquetType == format::Type::INT64);
-public:
+
+   public:
     using typename value_encoder<ParquetType>::input_type;
     using typename value_encoder<ParquetType>::flush_result;
     using signed_type = typename arithmetic_type<ParquetType>::signed_type;
     using unsigned_type = typename arithmetic_type<ParquetType>::unsigned_type;
-private:
+
+   private:
     static constexpr size_t BLOCK_VALUES = 256;
     static constexpr size_t MINIBLOCKS_PER_BLOCK = 8;
     static constexpr size_t VALUES_PER_MINIBLOCK = BLOCK_VALUES / MINIBLOCKS_PER_BLOCK;
-    static constexpr size_t MAX_VLQ_BYTES
-            = (ParquetType == format::Type::INT32)
-            ? 5
-            : 10;
+    static constexpr size_t MAX_VLQ_BYTES = (ParquetType == format::Type::INT32) ? 5 : 10;
     size_t _total_values = 0;
     signed_type _first_value = 0;
     signed_type _last_value = 0;
     std::vector<signed_type> _unencoded_values;
     bytes _encoded_buffer;
-private:
+
+   private:
     void flush_block() {
         if (_unencoded_values.empty()) {
             return;
@@ -889,9 +894,7 @@ private:
         unsigned_type bit_widths[MINIBLOCKS_PER_BLOCK] = {};
 
         for (size_t i = 0; i < _unencoded_values.size(); ++i) {
-            deltas[i]
-                    = static_cast<unsigned_type>(_unencoded_values[i])
-                    - static_cast<unsigned_type>(_last_value);
+            deltas[i] = static_cast<unsigned_type>(_unencoded_values[i]) - static_cast<unsigned_type>(_last_value);
             _last_value = _unencoded_values[i];
         }
 
@@ -914,8 +917,7 @@ private:
         size_t old_data_size = _encoded_buffer.size();
         size_t max_new_data_size = max_current_block_size();
         _encoded_buffer.resize(old_data_size + max_new_data_size);
-        BitUtil::BitWriter _data_writer(
-                &_encoded_buffer[old_data_size], max_new_data_size);
+        BitUtil::BitWriter _data_writer(&_encoded_buffer[old_data_size], max_new_data_size);
 
         _data_writer.PutZigZagVlqInt(min_delta);
         for (size_t mb = 0; mb < MINIBLOCKS_PER_BLOCK; ++mb) {
@@ -937,14 +939,12 @@ private:
         _encoded_buffer.resize(old_data_size + _data_writer.bytes_written());
     }
     size_t max_current_block_size() const {
-        size_t current_num_of_miniblocks
-                = (_unencoded_values.size() + VALUES_PER_MINIBLOCK - 1)
-                / VALUES_PER_MINIBLOCK;
-        return MAX_VLQ_BYTES
-                + MINIBLOCKS_PER_BLOCK
-                + sizeof(input_type) * VALUES_PER_MINIBLOCK * current_num_of_miniblocks;
+        size_t current_num_of_miniblocks = (_unencoded_values.size() + VALUES_PER_MINIBLOCK - 1) / VALUES_PER_MINIBLOCK;
+        return MAX_VLQ_BYTES + MINIBLOCKS_PER_BLOCK +
+               sizeof(input_type) * VALUES_PER_MINIBLOCK * current_num_of_miniblocks;
     }
-public:
+
+   public:
     void put_batch(const input_type data[], size_t size) override {
         if (size == 0) {
             return;
@@ -986,27 +986,22 @@ public:
         _last_value = 0;
         size_t encoder_buffer_size = _encoded_buffer.size();
         _encoded_buffer.clear();
-        return {
-            encoder_buffer_size + header_writer.bytes_written(),
-            format::Encoding::DELTA_BINARY_PACKED
-        };
+        return {encoder_buffer_size + header_writer.bytes_written(), format::Encoding::DELTA_BINARY_PACKED};
     }
 };
 
 template <format::Type::type ParquetType>
-std::unique_ptr<value_encoder<ParquetType>>
-make_value_encoder(format::Encoding::type encoding) {
+std::unique_ptr<value_encoder<ParquetType>> make_value_encoder(format::Encoding::type encoding) {
     if constexpr (ParquetType == format::Type::INT96) {
-        throw parquet_exception(
-                "INT96 is deprecated and writes of this type are unsupported");
+        throw parquet_exception("INT96 is deprecated and writes of this type are unsupported");
     }
-    const auto not_implemented = [&] () {
-        return parquet_exception(seastar::format(
-                "Encoding type {} as {} is not implemented yet", static_cast<int32_t>(ParquetType), static_cast<int32_t>( encoding)));
+    const auto not_implemented = [&]() {
+        return parquet_exception(seastar::format("Encoding type {} as {} is not implemented yet",
+                                                 static_cast<int32_t>(ParquetType), static_cast<int32_t>(encoding)));
     };
-    const auto invalid = [&] () {
-        return parquet_exception(seastar::format(
-                "Encoding {} is invalid for type {}", static_cast<int32_t>( encoding), static_cast<int32_t>(ParquetType)));
+    const auto invalid = [&]() {
+        return parquet_exception(seastar::format("Encoding {} is invalid for type {}", static_cast<int32_t>(encoding),
+                                                 static_cast<int32_t>(ParquetType)));
     };
     if (encoding == format::Encoding::PLAIN) {
         return std::make_unique<plain_encoder<ParquetType>>();
@@ -1045,19 +1040,19 @@ make_value_encoder(format::Encoding::type encoding) {
     throw parquet_exception(seastar::format("Unknown encoding ({})", static_cast<int32_t>(encoding)));
 }
 
-template std::unique_ptr<value_encoder<format::Type::INT32>>
-make_value_encoder<format::Type::INT32>(format::Encoding::type);
-template std::unique_ptr<value_encoder<format::Type::INT64>>
-make_value_encoder<format::Type::INT64>(format::Encoding::type);
-template std::unique_ptr<value_encoder<format::Type::FLOAT>>
-make_value_encoder<format::Type::FLOAT>(format::Encoding::type);
-template std::unique_ptr<value_encoder<format::Type::DOUBLE>>
-make_value_encoder<format::Type::DOUBLE>(format::Encoding::type);
-template std::unique_ptr<value_encoder<format::Type::BOOLEAN>>
-make_value_encoder<format::Type::BOOLEAN>(format::Encoding::type);
-template std::unique_ptr<value_encoder<format::Type::BYTE_ARRAY>>
-make_value_encoder<format::Type::BYTE_ARRAY>(format::Encoding::type);
+template std::unique_ptr<value_encoder<format::Type::INT32>> make_value_encoder<format::Type::INT32>(
+  format::Encoding::type);
+template std::unique_ptr<value_encoder<format::Type::INT64>> make_value_encoder<format::Type::INT64>(
+  format::Encoding::type);
+template std::unique_ptr<value_encoder<format::Type::FLOAT>> make_value_encoder<format::Type::FLOAT>(
+  format::Encoding::type);
+template std::unique_ptr<value_encoder<format::Type::DOUBLE>> make_value_encoder<format::Type::DOUBLE>(
+  format::Encoding::type);
+template std::unique_ptr<value_encoder<format::Type::BOOLEAN>> make_value_encoder<format::Type::BOOLEAN>(
+  format::Encoding::type);
+template std::unique_ptr<value_encoder<format::Type::BYTE_ARRAY>> make_value_encoder<format::Type::BYTE_ARRAY>(
+  format::Encoding::type);
 template std::unique_ptr<value_encoder<format::Type::FIXED_LEN_BYTE_ARRAY>>
-make_value_encoder<format::Type::FIXED_LEN_BYTE_ARRAY>(format::Encoding::type);
+  make_value_encoder<format::Type::FIXED_LEN_BYTE_ARRAY>(format::Encoding::type);
 
-} // namespace parquet4seastar
+}  // namespace parquet4seastar
