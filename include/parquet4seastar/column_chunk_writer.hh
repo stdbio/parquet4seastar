@@ -21,17 +21,18 @@
 
 #pragma once
 
-#include <parquet4seastar/column_chunk_reader.hh>
-#include <parquet4seastar/bytes.hh>
-#include <parquet4seastar/encoding.hh>
 #include <boost/iterator/counting_iterator.hpp>
+#include <parquet4seastar/bytes.hh>
+#include <parquet4seastar/column_chunk_reader.hh>
+#include <parquet4seastar/encoding.hh>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 namespace parquet4seastar {
 
-struct writer_options {
+struct writer_options
+{
     uint32_t def_level;
     uint32_t rep_level;
     format::Encoding::type encoding;
@@ -39,7 +40,8 @@ struct writer_options {
 };
 
 template <format::Type::type ParquetType>
-class column_chunk_writer {
+class column_chunk_writer
+{
     thrift_serializer _thrift_serializer;
     rle_builder _rep_encoder;
     rle_builder _def_encoder;
@@ -56,22 +58,19 @@ class column_chunk_writer {
     uint32_t _def_level;
     uint64_t _rows_written = 0;
     size_t _estimated_chunk_size = 0;
-public:
+
+   public:
     using input_type = typename value_encoder<ParquetType>::input_type;
 
-    column_chunk_writer(
-            uint32_t def_level,
-            uint32_t rep_level,
-            std::unique_ptr<value_encoder<ParquetType>> val_encoder,
-            std::unique_ptr<compressor> compressor)
-        : _rep_encoder{bit_width(rep_level)}
-        , _def_encoder{bit_width(def_level)}
-        , _val_encoder{std::move(val_encoder)}
-        , _compressor{std::move(compressor)}
-        , _used_encodings(10)
-        , _rep_level{rep_level}
-        , _def_level{def_level}
-        {}
+    column_chunk_writer(uint32_t def_level, uint32_t rep_level, std::unique_ptr<value_encoder<ParquetType>> val_encoder,
+                        std::unique_ptr<compressor> compressor)
+        : _rep_encoder{bit_width(rep_level)},
+          _def_encoder{bit_width(def_level)},
+          _val_encoder{std::move(val_encoder)},
+          _compressor{std::move(compressor)},
+          _used_encodings(10),
+          _rep_level{rep_level},
+          _def_level{def_level} {}
 
     template <typename LevelT>
     void put_batch(size_t count, LevelT def[], LevelT rep[], input_type val[]) {
@@ -156,21 +155,20 @@ public:
         _pages.push_back(std::move(compressed_page));
     }
 
-    seastar::future<seastar::lw_shared_ptr<format::ColumnMetaData>> flush_chunk(seastar::output_stream<char>& sink) {
+    template <typename SINK>
+    seastar::future<seastar::lw_shared_ptr<format::ColumnMetaData>> flush_chunk(SINK& sink) {
         if (_levels_in_current_page > 0) {
             flush_page();
         }
         auto metadata = seastar::make_lw_shared<format::ColumnMetaData>();
         metadata->__set_type(ParquetType);
-        metadata->__set_encodings(
-                std::vector<format::Encoding::type>(
-                        _used_encodings.begin(), _used_encodings.end()));
+        metadata->__set_encodings(std::vector<format::Encoding::type>(_used_encodings.begin(), _used_encodings.end()));
         metadata->__set_codec(_compressor->type());
         metadata->__set_num_values(0);
         metadata->__set_total_compressed_size(0);
         metadata->__set_total_uncompressed_size(0);
 
-        auto write_page = [this, metadata, &sink] (const format::PageHeader& header, bytes_view contents) {
+        auto write_page = [this, metadata, &sink](const format::PageHeader& header, bytes_view contents) {
             bytes_view serialized_header = _thrift_serializer.serialize(header);
             metadata->total_uncompressed_size += serialized_header.size();
             metadata->total_uncompressed_size += header.uncompressed_page_size;
@@ -192,26 +190,28 @@ public:
             } else {
                 return seastar::make_ready_future<>();
             }
-        }().then([this, write_page, metadata, &sink] {
-            metadata->__set_data_page_offset(metadata->total_compressed_size);
-            using it = boost::counting_iterator<size_t>;
-            return seastar::do_for_each(it(0), it(_page_headers.size()),
-                [this, metadata, write_page, &sink] (size_t i) {
-                metadata->num_values += _page_headers[i].data_page_header.num_values;
-                return write_page(_page_headers[i], _pages[i]);
-            });
-        }).then([this, metadata] {
-            _pages.clear();
-            _page_headers.clear();
-            _estimated_chunk_size = 0;
-            return metadata;
-        });
+        }()
+                 .then([this, write_page, metadata, &sink] {
+                     metadata->__set_data_page_offset(metadata->total_compressed_size);
+                     using it = boost::counting_iterator<size_t>;
+                     return seastar::do_for_each(
+                       it(0), it(_page_headers.size()), [this, metadata, write_page, &sink](size_t i) {
+                           metadata->num_values += _page_headers[i].data_page_header.num_values;
+                           return write_page(_page_headers[i], _pages[i]);
+                       });
+                 })
+                 .then([this, metadata] {
+                     _pages.clear();
+                     _page_headers.clear();
+                     _estimated_chunk_size = 0;
+                     return metadata;
+                 });
     }
 
     size_t rows_written() const { return _rows_written; }
     size_t estimated_chunk_size() const { return _estimated_chunk_size; }
 
-private:
+   private:
     void fill_dictionary_page() {
         bytes_view dict = *_val_encoder->view_dict();
         _dict_page = _compressor->compress(dict);
@@ -228,13 +228,10 @@ private:
 };
 
 template <format::Type::type ParquetType>
-column_chunk_writer<ParquetType>
-make_column_chunk_writer(const writer_options& options) {
-    return column_chunk_writer<ParquetType>(
-            options.def_level,
-            options.rep_level,
-            make_value_encoder<ParquetType>(options.encoding),
-            compressor::make(options.compression));
+column_chunk_writer<ParquetType> make_column_chunk_writer(const writer_options& options) {
+    return column_chunk_writer<ParquetType>(options.def_level, options.rep_level,
+                                            make_value_encoder<ParquetType>(options.encoding),
+                                            compressor::make(options.compression));
 }
 
-} // namespace parquet4seastar
+}  // namespace parquet4seastar

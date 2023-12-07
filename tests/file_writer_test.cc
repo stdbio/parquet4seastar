@@ -58,6 +58,23 @@ std::vector<T> vec() {
     return std::vector<T>();
 }
 
+class MemorySink
+{
+   public:
+    std::vector<char> data;
+
+    auto write(const char* str, size_t len) -> seastar::future<> {
+        for (auto idx = 0; idx < len; ++idx) {
+            data.push_back(str[idx]);
+        }
+        co_return;
+    }
+    auto flush() -> seastar::future<> { co_return; }
+    auto close() -> seastar::future<> { co_return; }
+};
+
+static_assert(parquet4seastar::is_sink_v<MemorySink>);
+
 SEASTAR_TEST_CASE(full_roundtrip) {
     using namespace parquet4seastar;
 
@@ -88,30 +105,64 @@ SEASTAR_TEST_CASE(full_roundtrip) {
                                       vec<node>(primitive_node{"Struct field 1", false, logical_type::FLOAT{}},
                                                 primitive_node{"Struct field 2", false, logical_type::DOUBLE{}})})})};
         }();
+        seastar::open_flags flags =
+          seastar::open_flags::wo | seastar::open_flags::create | seastar::open_flags::truncate;
+        auto file = open_file_dma(test_file_name, flags).get0();
+        auto sink = make_file_output_stream(file).get0();
+        auto fw = writer<seastar::output_stream<char>>::open(std::move(sink), writer_schema).get0();
+        auto memory_fw = writer<MemorySink>::open(MemorySink(), writer_schema).get0();
+        {
+            auto& map_key = fw->column<format::Type::BYTE_ARRAY>(0);
+            auto& map_value = fw->column<format::Type::INT32>(1);
+            auto& struct_field_1 = fw->column<format::Type::FLOAT>(2);
+            auto& struct_field_2 = fw->column<format::Type::DOUBLE>(3);
 
-        std::unique_ptr<file_writer> fw = file_writer::open(test_file_name, writer_schema).get0();
-        auto& map_key = fw->column<format::Type::BYTE_ARRAY>(0);
-        auto& map_value = fw->column<format::Type::INT32>(1);
-        auto& struct_field_1 = fw->column<format::Type::FLOAT>(2);
-        auto& struct_field_2 = fw->column<format::Type::DOUBLE>(3);
+            map_key.put(0, 0, "1337"_bv);
+            map_value.put(0, 0, 1337);
+            struct_field_1.put(0, 0, 1337);
+            struct_field_2.put(0, 0, 1337);
 
-        map_key.put(0, 0, "1337"_bv);
-        map_value.put(0, 0, 1337);
-        struct_field_1.put(0, 0, 1337);
-        struct_field_2.put(0, 0, 1337);
+            fw->flush_row_group().get0();
 
-        fw->flush_row_group().get0();
+            map_key.put(2, 0, "key1"_bv);
+            map_value.put(2, 0, 1);
+            map_key.put(2, 1, "key2"_bv);
+            map_value.put(2, 1, 1);
+            struct_field_1.put(2, 0, 1337);
+            struct_field_2.put(2, 0, 1337);
+            struct_field_1.put(3, 1, 1);
+            struct_field_2.put(3, 1, 1);
+        }
+        {
+            auto& map_key = memory_fw->column<format::Type::BYTE_ARRAY>(0);
+            auto& map_value = memory_fw->column<format::Type::INT32>(1);
+            auto& struct_field_1 = memory_fw->column<format::Type::FLOAT>(2);
+            auto& struct_field_2 = memory_fw->column<format::Type::DOUBLE>(3);
 
-        map_key.put(2, 0, "key1"_bv);
-        map_value.put(2, 0, 1);
-        map_key.put(2, 1, "key2"_bv);
-        map_value.put(2, 1, 1);
-        struct_field_1.put(2, 0, 1337);
-        struct_field_2.put(2, 0, 1337);
-        struct_field_1.put(3, 1, 1);
-        struct_field_2.put(3, 1, 1);
+            map_key.put(0, 0, "1337"_bv);
+            map_value.put(0, 0, 1337);
+            struct_field_1.put(0, 0, 1337);
+            struct_field_2.put(0, 0, 1337);
+
+            memory_fw->flush_row_group().get0();
+
+            map_key.put(2, 0, "key1"_bv);
+            map_value.put(2, 0, 1);
+            map_key.put(2, 1, "key2"_bv);
+            map_value.put(2, 1, 1);
+            struct_field_1.put(2, 0, 1337);
+            struct_field_2.put(2, 0, 1337);
+            struct_field_1.put(3, 1, 1);
+            struct_field_2.put(3, 1, 1);
+        }
 
         fw->close().get0();
+        memory_fw->close().get();
+
+        auto parquet_file = seastar::open_file_dma(test_file_name, seastar::open_flags::ro).get0();
+        auto size = parquet_file.size().get();
+        auto buffer = parquet_file.dma_read<char>(0, size).get();
+        BOOST_CHECK_EQUAL(std::vector<char>(buffer.begin(), buffer.end()), memory_fw->fetch_sink().data);
 
         // Read
         file_reader fr = file_reader::open(test_file_name).get0();
