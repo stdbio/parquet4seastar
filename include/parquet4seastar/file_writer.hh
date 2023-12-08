@@ -93,26 +93,27 @@ class writer
     }
 
    public:
+    explicit writer(SINK&& sink) : _sink(std::move(sink)) {}
+
     auto fetch_sink() -> SINK {
         assert(_closed);
         return std::move(_sink);
     }
 
-    static seastar::future<std::unique_ptr<writer>> open_and_write_par1(SINK&& target,
+    static seastar::future<std::unique_ptr<writer>> open_and_write_par1(SINK&& sink,
                                                                         const writer_schema::schema& schema) {
-        auto fw = std::make_unique<writer>();
+        auto fw = std::make_unique<writer>(std::move(sink));
         writer_schema::write_schema_result wsr = writer_schema::write_schema(schema);
         fw->_metadata.schema = std::move(wsr.elements);
         fw->_leaf_paths = std::move(wsr.leaf_paths);
         fw->init_writers(schema);
-        fw->_sink = std::move(target);
         fw->_file_offset = 4;
         co_await fw->_sink.write("PAR1", 4);
         co_return fw;
     }
 
-    static seastar::future<std::unique_ptr<writer>> open(SINK&& target, const writer_schema::schema& schema) {
-        return seastar::futurize_invoke([&schema, &target] { return open_and_write_par1(std::move(target), schema); });
+    static seastar::future<std::unique_ptr<writer>> open(SINK&& sink, const writer_schema::schema& schema) {
+        return seastar::futurize_invoke([&schema, &sink] { return open_and_write_par1(std::move(sink), schema); });
     }
 
     template <format::Type::type ParquetType>
