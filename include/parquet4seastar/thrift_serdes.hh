@@ -21,20 +21,21 @@
 
 #pragma once
 
+#include <thrift/protocol/TCompactProtocol.h>
+#include <thrift/protocol/TProtocolException.h>
+#include <thrift/transport/TBufferTransports.h>
+
 #include <parquet4seastar/bytes.hh>
 #include <parquet4seastar/exception.hh>
 #include <seastar/core/fstream.hh>
 #include <seastar/core/print.hh>
 
-#include <thrift/protocol/TCompactProtocol.h>
-#include <thrift/protocol/TProtocolException.h>
-#include <thrift/transport/TBufferTransports.h>
-
 namespace parquet4seastar {
 
 /* A dynamically sized buffer. Rounds up the size given in constructor to a power of 2.
  */
-class buffer {
+class buffer
+{
     size_t _size;
     std::unique_ptr<byte[]> _data;
     static constexpr inline uint64_t next_power_of_2(uint64_t n) {
@@ -43,10 +44,9 @@ class buffer {
         }
         return 1ull << seastar::log2ceil(n);
     }
-public:
-    explicit buffer(size_t size = 0)
-        : _size(next_power_of_2(size))
-        , _data(new byte[_size]) {}
+
+   public:
+    explicit buffer(size_t size = 0) : _size(next_power_of_2(size)), _data(new byte[_size]) {}
     byte* data() { return _data.get(); }
     size_t size() { return _size; }
 };
@@ -57,17 +57,19 @@ public:
  * and then we have to move the leftovers around to keep them contiguous with future reads.
  * peekable_stream takes care of that.
  */
-class peekable_stream {
+class peekable_stream
+{
     seastar::input_stream<char> _source;
     buffer _buffer;
     size_t _buffer_start = 0;
     size_t _buffer_end = 0;
-private:
+
+   private:
     void ensure_space(size_t n);
     seastar::future<> read_exactly(size_t n);
-public:
-    explicit peekable_stream(seastar::input_stream<char>&& source)
-        : _source{std::move(source)} {};
+
+   public:
+    explicit peekable_stream(seastar::input_stream<char>&& source) : _source{std::move(source)} {};
 
     // Assuming there is k bytes remaining in stream, view the next unconsumed min(k, n) bytes.
     seastar::future<bytes_view> peek(size_t n);
@@ -77,10 +79,8 @@ public:
 
 // Deserialize a single thrift structure. Return the number of bytes used.
 template <typename DeserializedType>
-uint32_t deserialize_thrift_msg(
-        const byte serialized_msg[],
-        uint32_t serialized_len,
-        DeserializedType& deserialized_msg) {
+uint32_t deserialize_thrift_msg(const byte serialized_msg[], uint32_t serialized_len,
+                                DeserializedType& deserialized_msg) {
     using ThriftBuffer = apache::thrift::transport::TMemoryBuffer;
     uint8_t* casted_msg = reinterpret_cast<uint8_t*>(const_cast<byte*>(serialized_msg));
     auto tmem_transport = std::make_shared<ThriftBuffer>(casted_msg, serialized_len);
@@ -91,15 +91,17 @@ uint32_t deserialize_thrift_msg(
     return serialized_len - bytes_left;
 }
 
-class thrift_serializer {
+class thrift_serializer
+{
     using thrift_buffer = apache::thrift::transport::TMemoryBuffer;
     using thrift_protocol = apache::thrift::protocol::TProtocol;
     std::shared_ptr<thrift_buffer> _transport;
     std::shared_ptr<thrift_protocol> _protocol;
-public:
+
+   public:
     thrift_serializer(size_t starting_size = 1024)
-        : _transport{std::make_shared<thrift_buffer>(starting_size)}
-        , _protocol{apache::thrift::protocol::TCompactProtocolFactoryT<thrift_buffer>{}.getProtocol(_transport)} {}
+        : _transport{std::make_shared<thrift_buffer>(starting_size)},
+          _protocol{apache::thrift::protocol::TCompactProtocolFactoryT<thrift_buffer>{}.getProtocol(_transport)} {}
 
     template <typename DeserializedType>
     bytes_view serialize(const DeserializedType& msg) {
@@ -115,42 +117,36 @@ public:
 // Deserialize (and consume from the stream) a single thrift structure.
 // Return false if the stream is empty.
 template <typename DeserializedType>
-seastar::future<bool> read_thrift_from_stream(
-        peekable_stream& stream,
-        DeserializedType& deserialized_msg,
-        size_t expected_size = 1024,
-        size_t max_allowed_size = 1024 * 1024 * 16
-) {
+seastar::future<bool> read_thrift_from_stream(peekable_stream& stream, DeserializedType& deserialized_msg,
+                                              size_t expected_size = 1024, size_t max_allowed_size = 1024 * 1024 * 16) {
     if (expected_size > max_allowed_size) {
-        return seastar::make_exception_future<bool>(parquet_exception(seastar::format(
-                "Could not deserialize thrift: max allowed size of {} exceeded", max_allowed_size)));
+        return seastar::make_exception_future<bool>(parquet_exception(
+          seastar::format("Could not deserialize thrift: max allowed size of {} exceeded", max_allowed_size)));
     }
-    return stream.peek(expected_size).then(
-    [&stream, &deserialized_msg, expected_size, max_allowed_size] (bytes_view peek) {
-        uint32_t len = peek.size();
-        if (len == 0) {
-            return seastar::make_ready_future<bool>(false);
-        }
-        try {
-            len = deserialize_thrift_msg(peek.data(), len, deserialized_msg);
-        } catch (const apache::thrift::transport::TTransportException& e) {
-            if (e.getType() == apache::thrift::transport::TTransportException::END_OF_FILE) {
-                // The serialized structure was bigger than expected. Retry with a bigger expectation.
-                if (peek.size() < expected_size) {
-                    throw parquet_exception(seastar::format(
-                            "Could not deserialize thrift: unexpected end of stream at {}B", peek.size()));
-                }
-                return read_thrift_from_stream(stream, deserialized_msg, expected_size * 2, max_allowed_size);
-            } else {
-                throw parquet_exception(seastar::format("Could not deserialize thrift: {}", e.what()));
-            }
-        } catch (const std::exception& e) {
-            throw parquet_exception(seastar::format("Could not deserialize thrift: {}", e.what()));
-        }
-        return stream.advance(len).then([] {
-            return true;
-        });
-    });
+    return stream.peek(expected_size)
+      .then([&stream, &deserialized_msg, expected_size, max_allowed_size](bytes_view peek) {
+          uint32_t len = peek.size();
+          if (len == 0) {
+              return seastar::make_ready_future<bool>(false);
+          }
+          try {
+              len = deserialize_thrift_msg(peek.data(), len, deserialized_msg);
+          } catch (const apache::thrift::transport::TTransportException& e) {
+              if (e.getType() == apache::thrift::transport::TTransportException::END_OF_FILE) {
+                  // The serialized structure was bigger than expected. Retry with a bigger expectation.
+                  if (peek.size() < expected_size) {
+                      throw parquet_exception(
+                        seastar::format("Could not deserialize thrift: unexpected end of stream at {}B", peek.size()));
+                  }
+                  return read_thrift_from_stream(stream, deserialized_msg, expected_size * 2, max_allowed_size);
+              } else {
+                  throw parquet_exception(seastar::format("Could not deserialize thrift: {}", e.what()));
+              }
+          } catch (const std::exception& e) {
+              throw parquet_exception(seastar::format("Could not deserialize thrift: {}", e.what()));
+          }
+          return stream.advance(len).then([] { return true; });
+      });
 }
 
-} // namespace parquet4seastar
+}  // namespace parquet4seastar
