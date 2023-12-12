@@ -56,6 +56,7 @@ seastar::future<std::unique_ptr<format::FileMetaData>> file_reader::read_file_me
 }
 
 seastar::future<file_reader> file_reader::open(std::unique_ptr<IReader> file) {
+    assert(file != nullptr);
     try {
         auto metadata = co_await read_file_metadata(*file);
         co_return file_reader(std::move(file), std::move(metadata));
@@ -67,6 +68,7 @@ seastar::future<file_reader> file_reader::open(std::unique_ptr<IReader> file) {
 namespace {
 
 seastar::future<std::unique_ptr<format::ColumnMetaData>> read_chunk_metadata(std::unique_ptr<IPeekableStream> stream) {
+    assert(stream != nullptr);
     auto column_metadata = std::make_unique<format::ColumnMetaData>();
     const auto read_success = co_await read_thrift_from_stream(*stream, *column_metadata);
     if (not read_success) {

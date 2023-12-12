@@ -26,6 +26,7 @@ namespace parquet4seastar {
 
 seastar::future<std::optional<page>> page_reader::next_page() {
     *_latest_header = format::PageHeader{};  // Thrift does not clear the structure by itself before writing to it.
+    assert(_source != nullptr);
     return read_thrift_from_stream(*_source, *_latest_header).then([this](bool read) {
         if (!read) {
             return seastar::make_ready_future<std::optional<page>>();

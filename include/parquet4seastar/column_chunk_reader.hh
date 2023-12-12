@@ -42,7 +42,9 @@ class page_reader
 
    public:
     explicit page_reader(std::unique_ptr<IPeekableStream> source)
-        : _source{std::move(source)}, _latest_header{std::make_unique<format::PageHeader>()} {};
+        : _source{std::move(source)}, _latest_header{std::make_unique<format::PageHeader>()} {
+        assert(_source != nullptr);
+    }
     // View the next page. Returns an empty result on eof.
     seastar::future<std::optional<page>> next_page();
 };

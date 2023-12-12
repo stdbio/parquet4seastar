@@ -90,14 +90,20 @@ class file_reader
    public:
     file_reader() = delete;
     file_reader(std::unique_ptr<IReader> file, std::unique_ptr<format::FileMetaData> meta)
-        : _file(std::move(file)), _metadata(std::move(meta)){};
+        : _file(std::move(file)), _metadata(std::move(meta)) {
+        assert(_file != nullptr);
+        assert(_metadata != nullptr);
+    };
 
     // The entry point to this library.
     static seastar::future<file_reader> open(std::unique_ptr<IReader> file);
 
     seastar::future<> close() { return _file->close(); };
 
-    auto file() const noexcept -> IReader& { return *_file; }
+    auto file() const noexcept -> IReader& {
+        assert(file != nullptr);
+        return *_file;
+    }
 
     const format::FileMetaData& metadata() const { return *_metadata; }
     // The schemata are computed lazily (not on open) for robustness.
