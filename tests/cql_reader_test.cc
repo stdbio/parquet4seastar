@@ -24,6 +24,7 @@
 #include <parquet4seastar/file_reader.hh>
 #include <parquet4seastar/reader_schema.hh>
 #include <seastar/core/print.hh>
+#include <seastar/core/seastar.hh>
 #include <seastar/core/thread.hh>
 #include <seastar/testing/test_case.hh>
 #include <sstream>
@@ -220,7 +221,9 @@ INSERT INTO "parquet"("row_number", "mycol") VALUES(0, null);
         for (const auto& [filename, output] : test_cases) {
             std::stringstream ss;
             ss << '\n';
-            future<file_reader> future_reader = file_reader::open(path + filename);
+            auto file = seastar::open_file_dma(path + filename, seastar::open_flags::ro).get();
+            std::unique_ptr<IReader> file_ptr = std::make_unique<SeastarFile>(SeastarFile(file));
+            future<file_reader> future_reader = file_reader::open(std::move(file_ptr));
             file_reader reader = future_reader
                                    .handle_exception([](auto eptr) {
                                        std::string hint =

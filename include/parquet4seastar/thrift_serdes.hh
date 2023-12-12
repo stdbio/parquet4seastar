@@ -51,6 +51,17 @@ class buffer
     size_t size() { return _size; }
 };
 
+class IPeekableStream
+{
+   public:
+    virtual ~IPeekableStream() = default;
+
+    // Assuming there is k bytes remaining in stream, view the next unconsumed min(k, n) bytes.
+    virtual seastar::future<bytes_view> peek(size_t n) = 0;
+    // Consume n bytes. If there is less than n bytes in stream, throw.
+    virtual seastar::future<> advance(size_t n) = 0;
+};
+
 /* The problem: we need to read a stream of objects of unknown, variable size (page headers)
  * placing each of them into contiguous memory for deserialization. Because we can only learn the size
  * of a page header after we deserialize it, we will inevitably read too much from the source stream,
@@ -58,13 +69,14 @@ class buffer
  * peekable_stream takes care of that.
  */
 class peekable_stream
+: public IPeekableStream
 {
     seastar::input_stream<char> _source;
     buffer _buffer;
     size_t _buffer_start = 0;
     size_t _buffer_end = 0;
 
-   private:
+
     void ensure_space(size_t n);
     seastar::future<> read_exactly(size_t n);
 
@@ -117,7 +129,7 @@ class thrift_serializer
 // Deserialize (and consume from the stream) a single thrift structure.
 // Return false if the stream is empty.
 template <typename DeserializedType>
-seastar::future<bool> read_thrift_from_stream(peekable_stream& stream, DeserializedType& deserialized_msg,
+seastar::future<bool> read_thrift_from_stream(IPeekableStream& stream, DeserializedType& deserialized_msg,
                                               size_t expected_size = 1024, size_t max_allowed_size = 1024 * 1024 * 16) {
     if (expected_size > max_allowed_size) {
         return seastar::make_exception_future<bool>(parquet_exception(

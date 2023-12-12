@@ -26,7 +26,7 @@ namespace parquet4seastar {
 
 seastar::future<std::optional<page>> page_reader::next_page() {
     *_latest_header = format::PageHeader{};  // Thrift does not clear the structure by itself before writing to it.
-    return read_thrift_from_stream(_source, *_latest_header).then([this](bool read) {
+    return read_thrift_from_stream(*_source, *_latest_header).then([this](bool read) {
         if (!read) {
             return seastar::make_ready_future<std::optional<page>>();
         }
@@ -36,13 +36,13 @@ seastar::future<std::optional<page>> page_reader::next_page() {
             //         "Negative compressed_page_size in header: {}", *_latest_header));
         }
         size_t compressed_size = static_cast<uint32_t>(_latest_header->compressed_page_size);
-        return _source.peek(compressed_size).then([this, compressed_size](bytes_view page_contents) {
+        return _source->peek(compressed_size).then([this, compressed_size](bytes_view page_contents) {
             if (page_contents.size() < compressed_size) {
                 throw parquet_exception::corrupted_file(seastar::format(
                   "Unexpected end of column chunk while reading compressed page contents (expected {}B, got {}B)",
                   compressed_size, page_contents.size()));
             }
-            return _source.advance(compressed_size).then([this, page_contents] {
+            return _source->advance(compressed_size).then([this, page_contents] {
                 return seastar::make_ready_future<std::optional<page>>(page{_latest_header.get(), page_contents});
             });
         });

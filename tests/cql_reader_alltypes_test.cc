@@ -23,6 +23,7 @@
 #include <parquet4seastar/cql_reader.hh>
 #include <parquet4seastar/file_reader.hh>
 #include <parquet4seastar/reader_schema.hh>
+#include <seastar/core/seastar.hh>
 #include <seastar/core/thread.hh>
 #include <seastar/testing/test_case.hh>
 #include <sstream>
@@ -99,7 +100,9 @@ SEASTAR_TEST_CASE(parquet_to_cql) {
         for (const auto& [filename, output] : test_cases) {
             std::stringstream ss;
             ss << '\n';
-            auto reader = file_reader::open(path + filename).get0();
+            auto file = seastar::open_file_dma(path + filename, seastar::open_flags::ro).get();
+            auto file_ptr = std::make_unique<SeastarFile>(SeastarFile(file));
+            auto reader = file_reader::open(std::move(file_ptr)).get0();
             cql::parquet_to_cql(reader, "parquet", "row_number", ss).get();
             BOOST_CHECK_EQUAL(ss.str(), output);
         }
