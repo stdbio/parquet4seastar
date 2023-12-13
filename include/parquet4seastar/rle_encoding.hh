@@ -389,8 +389,8 @@ inline void RleEncoder::FlushLiteralRun(bool update_indicator_byte) {
 
   // Write all the buffered values as bit packed literals
   for (int i = 0; i < num_buffered_values_; ++i) {
-    bool success = bit_writer_.PutValue(buffered_values_[i], bit_width_);
-    assert(success && "There is a bug in using CheckBufferFull()");
+      [[maybe_unused]] bool success = bit_writer_.PutValue(buffered_values_[i], bit_width_);
+      assert(success && "There is a bug in using CheckBufferFull()");
   }
   num_buffered_values_ = 0;
 

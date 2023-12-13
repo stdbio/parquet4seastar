@@ -165,7 +165,10 @@ SEASTAR_TEST_CASE(full_roundtrip) {
         BOOST_CHECK_EQUAL(std::vector<char>(buffer.begin(), buffer.end()), memory_fw->fetch_sink().data);
 
         // Read
-        file_reader fr = file_reader::open(test_file_name).get0();
+        auto seastar_file = open_file_dma(test_file_name, seastar::open_flags::ro).get();
+
+        std::unique_ptr<IReader> file_ptr = std::make_unique<SeastarFile>(SeastarFile(seastar_file));
+        auto fr = file_reader::open(std::move(file_ptr)).get();
         std::stringstream ss;
         ss << '\n';
         cql::parquet_to_cql(fr, "parquet", "row_number", ss).get();

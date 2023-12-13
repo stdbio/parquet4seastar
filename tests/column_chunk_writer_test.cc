@@ -23,6 +23,7 @@
 
 #include <parquet4seastar/column_chunk_reader.hh>
 #include <parquet4seastar/column_chunk_writer.hh>
+#include <parquet4seastar/file_reader.hh>
 #include <seastar/core/seastar.hh>
 #include <seastar/core/thread.hh>
 #include <seastar/testing/test_case.hh>
@@ -68,7 +69,7 @@ SEASTAR_TEST_CASE(column_roundtrip) {
         seastar::file input_file = seastar::open_file_dma(test_file_name.data(), seastar::open_flags::ro).get0();
 
         column_chunk_reader<format::Type::FIXED_LEN_BYTE_ARRAY> r{
-          page_reader{seastar::make_file_input_stream(std::move(input_file))}, format::CompressionCodec::SNAPPY, 1, 1,
+          page_reader{SeastarFile(input_file).make_peekable_stream()}, format::CompressionCodec::SNAPPY, 1, 1,
           std::optional<uint32_t>(1)};
 
         constexpr size_t n_levels = 6;

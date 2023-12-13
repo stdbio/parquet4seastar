@@ -35,14 +35,16 @@ struct page
 
 class page_reader
 {
-    peekable_stream _source;
+    std::unique_ptr<IPeekableStream> _source;
     std::unique_ptr<format::PageHeader> _latest_header;
     static constexpr uint32_t _default_expected_header_size = 1024;
     static constexpr uint32_t _max_allowed_header_size = 16 * 1024 * 1024;
 
    public:
-    explicit page_reader(seastar::input_stream<char>&& source)
-        : _source{std::move(source)}, _latest_header{std::make_unique<format::PageHeader>()} {};
+    explicit page_reader(std::unique_ptr<IPeekableStream> source)
+        : _source{std::move(source)}, _latest_header{std::make_unique<format::PageHeader>()} {
+        assert(_source != nullptr);
+    }
     // View the next page. Returns an empty result on eof.
     seastar::future<std::optional<page>> next_page();
 };
