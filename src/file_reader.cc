@@ -36,7 +36,7 @@ seastar::future<std::unique_ptr<format::FileMetaData>> file_reader::read_file_me
     // 4-byte length in bytes of file metadata (little endian)
     // 4-byte magic number "PAR1"
     // EOF
-    auto footer = co_await file.dma_read_exactly(size - 8, 8);
+    auto footer = co_await file.read_exactly(size - 8, 8);
     if (std::memcmp(footer.get() + 4, "PARE", 4) == 0) {
         throw parquet_exception("Parquet encryption is currently unsupported");
     }
@@ -49,7 +49,7 @@ seastar::future<std::unique_ptr<format::FileMetaData>> file_reader::read_file_me
         throw parquet_exception::corrupted_file(seastar::format(
           "Metadata size reported by footer ({}B) greater than file size ({}B)", metadata_len + 8, size));
     }
-    auto serialized_metadata = co_await file.dma_read_exactly(size - 8 - metadata_len, metadata_len);
+    auto serialized_metadata = co_await file.read_exactly(size - 8 - metadata_len, metadata_len);
     auto deserialized_metadata = std::make_unique<format::FileMetaData>();
     deserialize_thrift_msg(serialized_metadata.get(), serialized_metadata.size(), *deserialized_metadata);
     co_return deserialized_metadata;

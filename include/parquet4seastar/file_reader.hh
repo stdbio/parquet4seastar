@@ -33,7 +33,7 @@ class IReader
     virtual ~IReader() = default;
     virtual auto close() -> seastar::future<> = 0;
     virtual auto size() -> seastar::future<size_t> = 0;
-    virtual auto dma_read_exactly(uint64_t pos, size_t len) -> seastar::future<seastar::temporary_buffer<uint8_t>> = 0;
+    virtual auto read_exactly(uint64_t pos, size_t len) -> seastar::future<seastar::temporary_buffer<uint8_t>> = 0;
 
     virtual auto make_peekable_stream(uint64_t offset, uint64_t len, seastar::file_input_stream_options options = {})
       -> std::unique_ptr<IPeekableStream> = 0;
@@ -53,7 +53,7 @@ class SeastarFile : public IReader
 
     auto close() -> seastar::future<> override { return _file.close(); }
     auto size() -> seastar::future<size_t> override { return _file.size(); }
-    auto dma_read_exactly(uint64_t pos, size_t len) -> seastar::future<seastar::temporary_buffer<uint8_t>> override {
+    auto read_exactly(uint64_t pos, size_t len) -> seastar::future<seastar::temporary_buffer<uint8_t>> override {
         return _file.dma_read_exactly<uint8_t>(pos, len);
     }
 
