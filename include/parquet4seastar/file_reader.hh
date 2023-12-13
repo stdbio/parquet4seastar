@@ -101,7 +101,7 @@ class file_reader
     seastar::future<> close() { return _file->close(); };
 
     auto file() const noexcept -> IReader& {
-        assert(file != nullptr);
+        assert(_file != nullptr);
         return *_file;
     }
 
