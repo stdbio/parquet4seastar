@@ -121,6 +121,17 @@ class writer
         return std::get<column_chunk_writer<ParquetType>>(_writers[i]);
     }
 
+
+    auto flush_page(int idx, uint64_t limit_size)->bool {
+        return std::visit([&limit_size](auto& col) -> bool {
+            if (col.current_page_max_size() > limit_size) {
+                col.flush_page();
+                return true;
+            }
+            return false;
+        }, _writers[idx]);
+    }
+
     size_t estimated_row_group_size() const {
         size_t size = 0;
         for (const auto& writer : _writers) {
