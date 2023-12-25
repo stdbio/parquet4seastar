@@ -25,6 +25,7 @@
 #include <parquet4seastar/bytes.hh>
 #include <parquet4seastar/column_chunk_reader.hh>
 #include <parquet4seastar/encoding.hh>
+#include <ranges>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -206,6 +207,49 @@ class column_chunk_writer
                      _estimated_chunk_size = 0;
                      return metadata;
                  });
+    }
+
+    template <typename SINK>
+    seastar::lw_shared_ptr<format::ColumnMetaData> sync_flush_chunk(SINK& sink) {
+        if (_levels_in_current_page > 0) {
+            flush_page();
+        }
+        auto metadata = seastar::make_lw_shared<format::ColumnMetaData>();
+        metadata->__set_type(ParquetType);
+        metadata->__set_encodings(std::vector<format::Encoding::type>(_used_encodings.begin(), _used_encodings.end()));
+        metadata->__set_codec(_compressor->type());
+        metadata->__set_num_values(0);
+        metadata->__set_total_compressed_size(0);
+        metadata->__set_total_uncompressed_size(0);
+        auto write_page = [this, metadata, &sink](const format::PageHeader& header, bytes_view contents) -> void {
+            bytes_view serialized_header = _thrift_serializer.serialize(header);
+            metadata->total_uncompressed_size += serialized_header.size();
+            metadata->total_uncompressed_size += header.uncompressed_page_size;
+            metadata->total_compressed_size += serialized_header.size();
+            metadata->total_compressed_size += header.compressed_page_size;
+            {
+                const char* data = reinterpret_cast<const char*>(serialized_header.data());
+                sink.write(data, serialized_header.size());
+            }
+            {
+                const char* data = reinterpret_cast<const char*>(contents.data());
+                sink.write(data, contents.size());
+            }
+        };
+        if (_val_encoder->view_dict()) {
+            fill_dictionary_page();
+            metadata->__set_dictionary_page_offset(metadata->total_compressed_size);
+            write_page(_dict_page_header, _dict_page);
+        }
+        metadata->__set_data_page_offset(metadata->total_compressed_size);
+        for (size_t i : std::ranges::iota_view(0U, _page_headers.size())) {
+            metadata->num_values += _page_headers[i].data_page_header.num_values;
+            write_page(_page_headers[i], _pages[i]);
+        }
+        _pages.clear();
+        _page_headers.clear();
+        _estimated_chunk_size = 0;
+        return metadata;
     }
 
     size_t rows_written() const { return _rows_written; }

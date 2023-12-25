@@ -63,17 +63,16 @@ class MemorySink
    public:
     std::vector<char> data;
 
-    auto write(const char* str, size_t len) -> seastar::future<> {
+    auto write(const char* str, size_t len) -> void {
         for (auto idx = 0; idx < len; ++idx) {
             data.push_back(str[idx]);
         }
-        co_return;
     }
-    auto flush() -> seastar::future<> { co_return; }
-    auto close() -> seastar::future<> { co_return; }
+    auto flush() -> void {}
+    auto close() -> void {}
 };
 
-static_assert(parquet4seastar::is_sink_v<MemorySink>);
+static_assert(parquet4seastar::is_sync_sink_v<MemorySink>);
 
 SEASTAR_TEST_CASE(full_roundtrip) {
     using namespace parquet4seastar;
@@ -110,7 +109,7 @@ SEASTAR_TEST_CASE(full_roundtrip) {
         auto file = open_file_dma(test_file_name, flags).get0();
         auto sink = make_file_output_stream(file).get0();
         auto fw = writer<seastar::output_stream<char>>::open(std::move(sink), writer_schema).get0();
-        auto memory_fw = writer<MemorySink>::open(MemorySink(), writer_schema).get0();
+        auto memory_fw = sync_writer<MemorySink>::open(MemorySink(), writer_schema);
         {
             auto& map_key = fw->column<format::Type::BYTE_ARRAY>(0);
             auto& map_value = fw->column<format::Type::INT32>(1);
@@ -144,7 +143,7 @@ SEASTAR_TEST_CASE(full_roundtrip) {
             struct_field_1.put(0, 0, 1337);
             struct_field_2.put(0, 0, 1337);
 
-            memory_fw->flush_row_group().get0();
+            memory_fw->flush_row_group();
 
             map_key.put(2, 0, "key1"_bv);
             map_value.put(2, 0, 1);
@@ -157,7 +156,7 @@ SEASTAR_TEST_CASE(full_roundtrip) {
         }
 
         fw->close().get0();
-        memory_fw->close().get();
+        memory_fw->close();
 
         auto parquet_file = seastar::open_file_dma(test_file_name, seastar::open_flags::ro).get0();
         auto size = parquet_file.size().get();
