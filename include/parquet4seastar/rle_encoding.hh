@@ -412,7 +412,7 @@ inline void RleEncoder::FlushLiteralRun(bool update_indicator_byte) {
 
 inline void RleEncoder::FlushRepeatedRun() {
   assert(repeat_count_ > 0);
-  bool result = true;
+  [[maybe_unused]] bool result = true;
   // The lsb of 0 indicates this is a repeated run
   int32_t indicator_value = repeat_count_ << 1 | 0;
   result &= bit_writer_.PutVlqInt(indicator_value);
